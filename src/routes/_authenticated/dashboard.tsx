@@ -125,104 +125,41 @@ function Dashboard() {
 // ============================================================
 function EnvironmentsTab() {
   const list = useServerFn(listEnvironments);
-  const upsert = useServerFn(upsertEnvironment);
-  const del = useServerFn(deleteEnvironment);
-  const qc = useQueryClient();
-
   const { data: envs = [], isLoading } = useQuery({
     queryKey: ["envs"],
     queryFn: () => list(),
   });
 
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<any>(null);
-  const [form, setForm] = useState({ name: "", base_url: "", api_key: "" });
-
-  const openNew = () => {
-    setEditing(null);
-    setForm({ name: "", base_url: "", api_key: "" });
-    setOpen(true);
-  };
-  const openEdit = (env: any) => {
-    setEditing(env);
-    setForm({ name: env.name, base_url: env.base_url, api_key: env.api_key ?? "" });
-    setOpen(true);
-  };
-
-  const save = useMutation({
-    mutationFn: async () => upsert({ data: { id: editing?.id, ...form, api_key: form.api_key || null } }),
-    onSuccess: () => {
-      toast.success(editing ? "Environment updated" : "Environment created");
-      setOpen(false);
-      qc.invalidateQueries({ queryKey: ["envs"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const remove = useMutation({
-    mutationFn: async (id: string) => del({ data: { id } }),
-    onSuccess: () => {
-      toast.success("Environment deleted");
-      qc.invalidateQueries({ queryKey: ["envs"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
   return (
     <Card className="mt-4">
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader>
         <CardTitle>Environments</CardTitle>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" onClick={openNew}><Plus className="w-4 h-4 mr-1" />Add</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editing ? "Edit environment" : "New environment"}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Name</Label>
-                <Input placeholder="e.g. staging" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Agent base URL</Label>
-                <Input placeholder="https://sanity-agent.staging.example.com" value={form.base_url} onChange={(e) => setForm({ ...form, base_url: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>API key <span className="text-muted-foreground">(optional)</span></Label>
-                <Input type="password" placeholder="Sent as x-api-key / Bearer" value={form.api_key} onChange={(e) => setForm({ ...form, api_key: e.target.value })} />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button onClick={() => save.mutate()} disabled={save.isPending || !form.name || !form.base_url}>
-                {save.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />} Save
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <p className="text-xs text-muted-foreground mt-1">
+          Configured via the <code className="bg-muted px-1 rounded">AGENT_ENVIRONMENTS</code> deployment
+          variable. Set a JSON array of <code className="bg-muted px-1 rounded">{`{name, base_url, api_key?}`}</code> entries to change them.
+        </p>
       </CardHeader>
       <CardContent>
         {isLoading ? (
           <div className="text-sm text-muted-foreground">Loading...</div>
         ) : envs.length === 0 ? (
           <div className="text-sm text-muted-foreground py-8 text-center">
-            No environments yet. Add your first tested environment.
+            No environments configured.
           </div>
         ) : (
           <div className="divide-y">
             {envs.map((env: any) => (
               <div key={env.id} className="py-3 flex items-center justify-between">
-                <div>
-                  <div className="font-medium">{env.name}</div>
-                  <div className="text-xs text-muted-foreground">{env.base_url}</div>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => openEdit(env)}>Edit</Button>
-                  <Button variant="ghost" size="sm" onClick={() => remove.mutate(env.id)}>
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </Button>
+                <div className="min-w-0">
+                  <div className="font-medium flex items-center gap-2">
+                    {env.name}
+                    {env.demo && (
+                      <Badge variant="outline" className="border-amber-500 text-amber-600 text-[10px]">
+                        <Sparkles className="w-3 h-3 mr-1" />mock
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate">{env.base_url}</div>
                 </div>
               </div>
             ))}

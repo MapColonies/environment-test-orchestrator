@@ -622,9 +622,14 @@ function ReportsTab() {
       <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 pr-8">
               <StatusBadge status={selected?.status ?? ""} />
-              {selected?.environment_name} · {selected?.suite_id}
+              <span className="flex-1 min-w-0 truncate">{selected?.environment_name} · {selected?.suite_id}</span>
+              {selected && (
+                <Button variant="outline" size="sm" onClick={() => exportExecutionPdf(selected)}>
+                  <Download className="w-4 h-4 mr-1" />PDF
+                </Button>
+              )}
             </DialogTitle>
           </DialogHeader>
           <div className="overflow-y-auto space-y-4">

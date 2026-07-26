@@ -14,7 +14,101 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      environments: {
+        Row: {
+          api_key: string | null
+          base_url: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          api_key?: string | null
+          base_url: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          api_key?: string | null
+          base_url?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      executions: {
+        Row: {
+          agent_execution_id: string | null
+          created_at: string
+          duration: number | null
+          end_time: string | null
+          environment_id: string | null
+          environment_name: string
+          error: string | null
+          id: string
+          logs: string
+          results: Json | null
+          start_time: string
+          status: string
+          suite_id: string
+          test_ids: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agent_execution_id?: string | null
+          created_at?: string
+          duration?: number | null
+          end_time?: string | null
+          environment_id?: string | null
+          environment_name: string
+          error?: string | null
+          id?: string
+          logs?: string
+          results?: Json | null
+          start_time?: string
+          status?: string
+          suite_id: string
+          test_ids?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agent_execution_id?: string | null
+          created_at?: string
+          duration?: number | null
+          end_time?: string | null
+          environment_id?: string | null
+          environment_name?: string
+          error?: string | null
+          id?: string
+          logs?: string
+          results?: Json | null
+          start_time?: string
+          status?: string
+          suite_id?: string
+          test_ids?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "executions_environment_id_fkey"
+            columns: ["environment_id"]
+            isOneToOne: false
+            referencedRelation: "environments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

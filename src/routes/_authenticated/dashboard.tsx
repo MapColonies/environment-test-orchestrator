@@ -28,8 +28,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import {
   FlaskConical, LogOut, Plus, Trash2, RefreshCw, Play, CheckCircle2, XCircle,
-  Loader2, Server, Activity, FileText, Settings, ChevronRight, Circle,
+  Loader2, Server, Activity, FileText, Settings, ChevronRight, Circle, Download,
 } from "lucide-react";
+import { exportExecutionPdf } from "@/lib/export-pdf";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -577,23 +578,41 @@ function ReportsTab() {
               const passed = results.filter((x: any) => x.outcome === "passed" || x.outcome === "success").length;
               const failed = results.length - passed;
               return (
-                <button key={r.id} onClick={() => openReport(r.id)} className="w-full py-3 flex items-center gap-3 hover:bg-muted/50 px-2 text-left">
-                  <StatusBadge status={r.status} />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm">{r.environment_name} · {r.suite_id}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {new Date(r.start_time).toLocaleString()}
-                      {r.duration != null && ` · ${Number(r.duration).toFixed(2)}s`}
+                <div key={r.id} className="w-full py-3 flex items-center gap-3 hover:bg-muted/50 px-2">
+                  <button onClick={() => openReport(r.id)} className="flex-1 flex items-center gap-3 text-left min-w-0">
+                    <StatusBadge status={r.status} />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm">{r.environment_name} · {r.suite_id}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(r.start_time).toLocaleString()}
+                        {r.duration != null && ` · ${Number(r.duration).toFixed(2)}s`}
+                      </div>
                     </div>
-                  </div>
-                  {results.length > 0 && (
-                    <div className="flex gap-2 text-xs">
-                      {passed > 0 && <Badge className="bg-green-600 hover:bg-green-600">{passed} passed</Badge>}
-                      {failed > 0 && <Badge variant="destructive">{failed} failed</Badge>}
-                    </div>
-                  )}
+                    {results.length > 0 && (
+                      <div className="flex gap-2 text-xs">
+                        {passed > 0 && <Badge className="bg-green-600 hover:bg-green-600">{passed} passed</Badge>}
+                        {failed > 0 && <Badge variant="destructive">{failed} failed</Badge>}
+                      </div>
+                    )}
+                  </button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    title="Download PDF report"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      try {
+                        const row = await get({ data: { id: r.id } });
+                        exportExecutionPdf(row);
+                      } catch (err: any) {
+                        toast.error(err?.message ?? "Failed to export PDF");
+                      }
+                    }}
+                  >
+                    <Download className="w-4 h-4" />
+                  </Button>
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                </button>
+                </div>
               );
             })}
           </div>
@@ -603,9 +622,14 @@ function ReportsTab() {
       <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 pr-8">
               <StatusBadge status={selected?.status ?? ""} />
-              {selected?.environment_name} · {selected?.suite_id}
+              <span className="flex-1 min-w-0 truncate">{selected?.environment_name} · {selected?.suite_id}</span>
+              {selected && (
+                <Button variant="outline" size="sm" onClick={() => exportExecutionPdf(selected)}>
+                  <Download className="w-4 h-4 mr-1" />PDF
+                </Button>
+              )}
             </DialogTitle>
           </DialogHeader>
           <div className="overflow-y-auto space-y-4">

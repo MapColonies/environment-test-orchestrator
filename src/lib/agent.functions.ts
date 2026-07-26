@@ -305,7 +305,7 @@ export const pollExecution = createServerFn({ method: "POST" })
       const startedAt = new Date(row.start_time).getTime();
       const elapsed = Date.now() - startedAt;
       const testIds: string[] = Array.isArray(row.test_ids) && row.test_ids.length
-        ? row.test_ids
+        ? (row.test_ids as any[]).map(String)
         : (DEMO_SUITES.find((s) => s.suite_id === row.suite_id)?.tests ?? []);
       const allLines = demoLogLines(row.suite_id, testIds, elapsed);
       const newLogLines = allLines.slice(data.sinceLines);

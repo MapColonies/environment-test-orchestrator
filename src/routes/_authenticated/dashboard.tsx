@@ -46,10 +46,25 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 function Dashboard() {
   const navigate = useNavigate();
   const [userEmail, setUserEmail] = useState<string>("");
+  const cfg = useServerFn(getRunnerConfig);
+  const seed = useServerFn(seedDemoExecutions);
+  const qc = useQueryClient();
+  const { data: config } = useQuery({ queryKey: ["runner-config"], queryFn: () => cfg() });
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email ?? ""));
   }, []);
+
+  // In demo mode, seed a few historical executions once so Reports isn't empty.
+  useEffect(() => {
+    if (!config?.demoMode) return;
+    seed().then((r) => {
+      if (r.inserted > 0) {
+        qc.invalidateQueries({ queryKey: ["executions"] });
+        toast.success(`Loaded ${r.inserted} demo report${r.inserted === 1 ? "" : "s"}`);
+      }
+    }).catch(() => { /* non-fatal */ });
+  }, [config?.demoMode]); // eslint-disable-line
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -63,6 +78,11 @@ function Dashboard() {
           <div className="flex items-center gap-2">
             <FlaskConical className="w-5 h-5 text-primary" />
             <span className="font-semibold">Sanity Agent Runner</span>
+            {config?.demoMode && (
+              <Badge variant="outline" className="ml-2 border-amber-500 text-amber-600">
+                <Sparkles className="w-3 h-3 mr-1" /> Demo mode
+              </Badge>
+            )}
           </div>
           <div className="flex items-center gap-3 text-sm">
             <span className="text-muted-foreground">{userEmail}</span>
@@ -74,12 +94,21 @@ function Dashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-6">
+        {config?.demoMode && (
+          <Alert className="mb-4 border-amber-500/40">
+            <Sparkles className="w-4 h-4" />
+            <AlertDescription className="text-sm">
+              Running with mock data. To connect real agents, set the <code className="text-xs bg-muted px-1 rounded">AGENT_ENVIRONMENTS</code> deployment
+              variable to a JSON array like <code className="text-xs bg-muted px-1 rounded">[{'{'}"name":"staging","base_url":"https://agent.staging.example.com"{'}'}]</code>.
+            </AlertDescription>
+          </Alert>
+        )}
         <Tabs defaultValue="run">
           <TabsList>
             <TabsTrigger value="run"><Play className="w-4 h-4 mr-1" />Run</TabsTrigger>
             <TabsTrigger value="health"><Activity className="w-4 h-4 mr-1" />Agent health</TabsTrigger>
             <TabsTrigger value="reports"><FileText className="w-4 h-4 mr-1" />Reports</TabsTrigger>
-            <TabsTrigger value="envs"><Settings className="w-4 h-4 mr-1" />Environments</TabsTrigger>
+            <TabsTrigger value="envs"><Server className="w-4 h-4 mr-1" />Environments</TabsTrigger>
           </TabsList>
           <TabsContent value="run"><RunTab /></TabsContent>
           <TabsContent value="health"><HealthTab /></TabsContent>

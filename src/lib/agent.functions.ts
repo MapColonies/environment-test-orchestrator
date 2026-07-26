@@ -244,7 +244,7 @@ export const pollExecution = createServerFn({ method: "POST" })
       if (statusBody.error) updates.error = statusBody.error;
     }
 
-    await context.supabase.from("executions").update(updates).eq("id", row.id);
+    await context.supabase.from("executions").update(updates as any).eq("id", row.id);
 
     return {
       status: statusBody?.status ?? row.status,

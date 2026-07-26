@@ -15,20 +15,18 @@ import {
   seedDemoExecutions,
 } from "@/lib/agent.functions";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import {
-  FlaskConical, LogOut, Plus, Trash2, RefreshCw, Play, CheckCircle2, XCircle,
-  Loader2, Server, Activity, FileText, Settings, ChevronRight, Circle, Download,
+  FlaskConical, LogOut, RefreshCw, Play, CheckCircle2, XCircle,
+  Loader2, Server, Activity, FileText, ChevronRight, Circle, Download, Sparkles,
 } from "lucide-react";
 import { exportExecutionPdf } from "@/lib/export-pdf";
 

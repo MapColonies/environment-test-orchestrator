@@ -28,8 +28,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import {
   FlaskConical, LogOut, Plus, Trash2, RefreshCw, Play, CheckCircle2, XCircle,
-  Loader2, Server, Activity, FileText, Settings, ChevronRight, Circle,
+  Loader2, Server, Activity, FileText, Settings, ChevronRight, Circle, Download,
 } from "lucide-react";
+import { exportExecutionPdf } from "@/lib/export-pdf";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({

@@ -47,15 +47,10 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 // ============================================================
 function Dashboard() {
   const navigate = useNavigate();
-  const [userEmail, setUserEmail] = useState<string>("");
   const cfg = useServerFn(getRunnerConfig);
   const seed = useServerFn(seedDemoExecutions);
   const qc = useQueryClient();
   const { data: config } = useQuery({ queryKey: ["runner-config"], queryFn: () => cfg() });
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email ?? ""));
-  }, []);
 
   // In demo mode, seed a few historical executions once so Reports isn't empty.
   useEffect(() => {

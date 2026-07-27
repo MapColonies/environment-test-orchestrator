@@ -105,11 +105,13 @@ function Dashboard() {
             <TabsTrigger value="run"><Play className="w-4 h-4 mr-1" />Run</TabsTrigger>
             <TabsTrigger value="compare"><GitCompareArrows className="w-4 h-4 mr-1" />Compare</TabsTrigger>
             <TabsTrigger value="health"><Activity className="w-4 h-4 mr-1" />Agent health</TabsTrigger>
+            <TabsTrigger value="cors"><ShieldCheck className="w-4 h-4 mr-1" />CORS test</TabsTrigger>
             <TabsTrigger value="reports"><FileText className="w-4 h-4 mr-1" />Reports</TabsTrigger>
           </TabsList>
           <TabsContent value="run"><RunTab /></TabsContent>
           <TabsContent value="compare"><CompareTab /></TabsContent>
           <TabsContent value="health"><HealthTab /></TabsContent>
+          <TabsContent value="cors"><CorsTab /></TabsContent>
           <TabsContent value="reports"><ReportsTab /></TabsContent>
         </Tabs>
       </main>

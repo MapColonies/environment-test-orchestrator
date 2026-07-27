@@ -52,7 +52,6 @@ function Dashboard() {
   const qc = useQueryClient();
   const { data: config } = useQuery({ queryKey: ["runner-config"], queryFn: () => cfg() });
 
-  // In demo mode, seed a few historical executions once so Reports isn't empty.
   useEffect(() => {
     if (!config?.demoMode) return;
     seed().then((r) => {
@@ -106,66 +105,14 @@ function Dashboard() {
             <TabsTrigger value="compare"><GitCompareArrows className="w-4 h-4 mr-1" />Compare</TabsTrigger>
             <TabsTrigger value="health"><Activity className="w-4 h-4 mr-1" />Agent health</TabsTrigger>
             <TabsTrigger value="reports"><FileText className="w-4 h-4 mr-1" />Reports</TabsTrigger>
-            <TabsTrigger value="envs"><Server className="w-4 h-4 mr-1" />Environments</TabsTrigger>
           </TabsList>
           <TabsContent value="run"><RunTab /></TabsContent>
           <TabsContent value="compare"><CompareTab /></TabsContent>
           <TabsContent value="health"><HealthTab /></TabsContent>
           <TabsContent value="reports"><ReportsTab /></TabsContent>
-          <TabsContent value="envs"><EnvironmentsTab /></TabsContent>
         </Tabs>
       </main>
     </div>
-  );
-}
-
-// ============================================================
-// Environments
-// ============================================================
-function EnvironmentsTab() {
-  const list = useServerFn(listEnvironments);
-  const { data: envs = [], isLoading } = useQuery({
-    queryKey: ["envs"],
-    queryFn: () => list(),
-  });
-
-  return (
-    <Card className="mt-4">
-      <CardHeader>
-        <CardTitle>Environments</CardTitle>
-        <p className="text-xs text-muted-foreground mt-1">
-          Configured via the <code className="bg-muted px-1 rounded">AGENT_ENVIRONMENTS</code> deployment
-          variable. Set a JSON array of <code className="bg-muted px-1 rounded">{`{name, base_url, api_key?}`}</code> entries to change them.
-        </p>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="text-sm text-muted-foreground">Loading...</div>
-        ) : envs.length === 0 ? (
-          <div className="text-sm text-muted-foreground py-8 text-center">
-            No environments configured.
-          </div>
-        ) : (
-          <div className="divide-y">
-            {envs.map((env: any) => (
-              <div key={env.id} className="py-3 flex items-center justify-between">
-                <div className="min-w-0">
-                  <div className="font-medium flex items-center gap-2">
-                    {env.name}
-                    {env.demo && (
-                      <Badge variant="outline" className="border-amber-500 text-amber-600 text-[10px]">
-                        <Sparkles className="w-3 h-3 mr-1" />mock
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="text-xs text-muted-foreground truncate">{env.base_url}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
   );
 }
 
@@ -204,7 +151,7 @@ function HealthTab() {
       </CardHeader>
       <CardContent>
         {envs.length === 0 ? (
-          <div className="text-sm text-muted-foreground py-8 text-center">Add an environment first.</div>
+          <div className="text-sm text-muted-foreground py-8 text-center">No environments configured.</div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
             {envs.map((env: any) => {
@@ -240,6 +187,13 @@ function HealthTab() {
 // ============================================================
 // Run
 // ============================================================
+type PerEnvConfig = {
+  suiteIds: string[];
+  testIds: string[];
+  suites: any[];
+  loading: boolean;
+};
+
 function RunTab() {
   const list = useServerFn(listEnvironments);
   const caps = useServerFn(getCapabilities);
@@ -248,44 +202,52 @@ function RunTab() {
   const qc = useQueryClient();
 
   const [selectedEnvs, setSelectedEnvs] = useState<string[]>([]);
-  const [capsSourceEnv, setCapsSourceEnv] = useState<string>("");
-  const [suites, setSuites] = useState<any[]>([]);
-  const [suiteId, setSuiteId] = useState<string>("");
-  const [selectedTests, setSelectedTests] = useState<string[]>([]);
-  const [loadingCaps, setLoadingCaps] = useState(false);
+  const [perEnv, setPerEnv] = useState<Record<string, PerEnvConfig>>({});
   const [runningIds, setRunningIds] = useState<string[]>([]);
 
-  const suite = useMemo(() => suites.find((s) => s.suite_id === suiteId), [suites, suiteId]);
-
-  const loadCaps = async (envId: string) => {
-    setCapsSourceEnv(envId);
-    setLoadingCaps(true);
+  const ensureCaps = useCallback(async (envId: string) => {
+    setPerEnv((p) => ({
+      ...p,
+      [envId]: p[envId] ?? { suiteIds: [], testIds: [], suites: [], loading: true },
+    }));
     try {
       const res = await caps({ data: { envId } });
-      setSuites(res.suites ?? []);
+      setPerEnv((p) => ({
+        ...p,
+        [envId]: { ...(p[envId] ?? { suiteIds: [], testIds: [] }), suites: res.suites ?? [], loading: false },
+      }));
     } catch (e: any) {
-      toast.error("Failed to load capabilities: " + e.message);
-      setSuites([]);
-    } finally {
-      setLoadingCaps(false);
+      toast.error(`Failed to load capabilities for ${envId}: ${e.message}`);
+      setPerEnv((p) => ({
+        ...p,
+        [envId]: { ...(p[envId] ?? { suiteIds: [], testIds: [] }), suites: [], loading: false },
+      }));
     }
-  };
+  }, [caps]);
 
   const toggleEnv = (id: string) => {
-    setSelectedEnvs((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
-    if (!capsSourceEnv) loadCaps(id);
+    setSelectedEnvs((s) => {
+      const next = s.includes(id) ? s.filter((x) => x !== id) : [...s, id];
+      if (!s.includes(id) && !perEnv[id]) ensureCaps(id);
+      return next;
+    });
   };
 
+  const updatePerEnv = (envId: string, patch: Partial<PerEnvConfig>) => {
+    setPerEnv((p) => ({ ...p, [envId]: { ...(p[envId] ?? { suiteIds: [], testIds: [], suites: [], loading: false }), ...patch } }));
+  };
+
+  const canRun = selectedEnvs.length > 0 && selectedEnvs.every((id) => (perEnv[id]?.suiteIds.length ?? 0) > 0);
+
   const runNow = async () => {
-    if (!selectedEnvs.length || !suiteId) return;
+    if (!canRun) return;
     try {
-      const res = await start({
-        data: {
-          envIds: selectedEnvs,
-          suiteId,
-          testIds: selectedTests.length ? selectedTests : null,
-        },
-      });
+      const runs = selectedEnvs.map((envId) => ({
+        envId,
+        suiteIds: perEnv[envId].suiteIds,
+        testIds: perEnv[envId].testIds.length ? perEnv[envId].testIds : null,
+      }));
+      const res = await start({ data: { runs } });
       toast.success(`Started ${res.executions.length} execution(s)`);
       setRunningIds(res.executions.map((e) => e.executionRowId));
       qc.invalidateQueries({ queryKey: ["executions"] });
@@ -300,7 +262,7 @@ function RunTab() {
         <CardHeader><CardTitle>1. Select environments</CardTitle></CardHeader>
         <CardContent>
           {envs.length === 0 ? (
-            <div className="text-sm text-muted-foreground">Add environments in the Environments tab.</div>
+            <div className="text-sm text-muted-foreground">No environments configured.</div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-2">
               {envs.map((env: any) => (
@@ -317,62 +279,38 @@ function RunTab() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>2. Choose suite &amp; tests</CardTitle>
-          {selectedEnvs.length > 0 && (
-            <Select value={capsSourceEnv} onValueChange={loadCaps}>
-              <SelectTrigger className="w-[220px]">
-                <SelectValue placeholder="Load capabilities from..." />
-              </SelectTrigger>
-              <SelectContent>
-                {envs.filter((e: any) => selectedEnvs.includes(e.id)).map((e: any) => (
-                  <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </CardHeader>
-        <CardContent>
-          {loadingCaps ? (
-            <div className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Loading...</div>
-          ) : suites.length === 0 ? (
-            <div className="text-sm text-muted-foreground">Select an environment to load available suites.</div>
-          ) : (
-            <div className="space-y-4">
-              <Select value={suiteId} onValueChange={(v) => { setSuiteId(v); setSelectedTests([]); }}>
-                <SelectTrigger><SelectValue placeholder="Pick a suite" /></SelectTrigger>
-                <SelectContent>
-                  {suites.map((s) => (
-                    <SelectItem key={s.suite_id} value={s.suite_id}>
-                      {s.suite_id} <span className="text-muted-foreground ml-2">({s.domain})</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {suite && (
-                <div>
-                  <div className="text-sm font-medium mb-2">Tests <span className="text-muted-foreground font-normal">(none selected = run all)</span></div>
-                  <div className="grid md:grid-cols-2 gap-2">
-                    {suite.tests.map((t: string) => (
-                      <label key={t} className="flex items-center gap-2 p-2 border rounded-md cursor-pointer hover:bg-muted/50 text-sm">
-                        <Checkbox
-                          checked={selectedTests.includes(t)}
-                          onCheckedChange={() => setSelectedTests((s) => s.includes(t) ? s.filter(x => x !== t) : [...s, t])}
-                        />
-                        {t}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
+      {selectedEnvs.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle>2. Choose suites &amp; tests per environment</CardTitle></CardHeader>
+          <CardContent>
+            <div
+              className={`grid gap-4 ${
+                selectedEnvs.length === 1
+                  ? "grid-cols-1"
+                  : selectedEnvs.length === 2
+                    ? "grid-cols-1 md:grid-cols-2"
+                    : "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
+              }`}
+            >
+              {selectedEnvs.map((envId) => {
+                const env = envs.find((e: any) => e.id === envId);
+                const cfg = perEnv[envId];
+                return (
+                  <EnvConfigPanel
+                    key={envId}
+                    envName={env?.name ?? envId}
+                    cfg={cfg}
+                    onChange={(patch) => updatePerEnv(envId, patch)}
+                  />
+                );
+              })}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex justify-end">
-        <Button size="lg" onClick={runNow} disabled={!selectedEnvs.length || !suiteId}>
+        <Button size="lg" onClick={runNow} disabled={!canRun}>
           <Play className="w-4 h-4 mr-1" /> Run on {selectedEnvs.length} env{selectedEnvs.length === 1 ? "" : "s"}
         </Button>
       </div>
@@ -389,6 +327,86 @@ function RunTab() {
   );
 }
 
+function EnvConfigPanel({
+  envName, cfg, onChange,
+}: {
+  envName: string;
+  cfg: PerEnvConfig | undefined;
+  onChange: (patch: Partial<PerEnvConfig>) => void;
+}) {
+  const suites = cfg?.suites ?? [];
+  const suiteIds = cfg?.suiteIds ?? [];
+  const testIds = cfg?.testIds ?? [];
+
+  const toggleSuite = (sid: string) => {
+    const next = suiteIds.includes(sid) ? suiteIds.filter((x) => x !== sid) : [...suiteIds, sid];
+    // Drop selected tests that no longer belong to any selected suite.
+    const kept = new Set(
+      suites.filter((s: any) => next.includes(s.suite_id)).flatMap((s: any) => s.tests),
+    );
+    onChange({ suiteIds: next, testIds: testIds.filter((t) => kept.has(t)) });
+  };
+
+  const toggleTest = (t: string) => {
+    onChange({ testIds: testIds.includes(t) ? testIds.filter((x) => x !== t) : [...testIds, t] });
+  };
+
+  const activeSuites = suites.filter((s: any) => suiteIds.includes(s.suite_id));
+
+  return (
+    <div className="border rounded-lg p-3 space-y-3">
+      <div className="flex items-center gap-2">
+        <Server className="w-4 h-4" />
+        <span className="font-medium text-sm">{envName}</span>
+      </div>
+      {cfg?.loading ? (
+        <div className="text-sm text-muted-foreground flex items-center gap-2">
+          <Loader2 className="w-4 h-4 animate-spin" />Loading capabilities...
+        </div>
+      ) : suites.length === 0 ? (
+        <div className="text-sm text-muted-foreground">No suites available.</div>
+      ) : (
+        <>
+          <div>
+            <div className="text-xs font-medium mb-1 text-muted-foreground">Suites</div>
+            <div className="space-y-1">
+              {suites.map((s: any) => (
+                <label key={s.suite_id} className="flex items-center gap-2 p-2 border rounded-md cursor-pointer hover:bg-muted/50 text-sm">
+                  <Checkbox checked={suiteIds.includes(s.suite_id)} onCheckedChange={() => toggleSuite(s.suite_id)} />
+                  <span className="font-medium">{s.suite_id}</span>
+                  <span className="text-xs text-muted-foreground">({s.domain})</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          {activeSuites.length > 0 && (
+            <div>
+              <div className="text-xs font-medium mb-1 text-muted-foreground">
+                Tests <span className="font-normal">(none selected = run all)</span>
+              </div>
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                {activeSuites.map((s: any) => (
+                  <div key={s.suite_id}>
+                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground py-1">{s.suite_id}</div>
+                    <div className="space-y-1">
+                      {s.tests.map((t: string) => (
+                        <label key={s.suite_id + t} className="flex items-center gap-2 p-1.5 border rounded cursor-pointer hover:bg-muted/50 text-xs">
+                          <Checkbox checked={testIds.includes(t)} onCheckedChange={() => toggleTest(t)} />
+                          {t}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ============================================================
 // Live streaming panel
 // ============================================================
@@ -398,9 +416,9 @@ function LiveExecution({ executionId }: { executionId: string }) {
   const [logs, setLogs] = useState<string[]>([]);
   const [status, setStatus] = useState<string>("running");
   const [meta, setMeta] = useState<any>(null);
+  const [reportOpen, setReportOpen] = useState(false);
   const sinceRef = useRef(0);
   const stopped = useRef(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     get({ data: { id: executionId } }).then((r) => setMeta(r));
@@ -429,9 +447,9 @@ function LiveExecution({ executionId }: { executionId: string }) {
     return () => { stopped.current = true; clearTimeout(timer); };
   }, [executionId, poll]);
 
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [logs.length]);
+  const done = status === "completed" || status === "failed";
+  // Newest lines first — user scrolls down for older entries; no auto-scroll needed.
+  const displayLogs = useMemo(() => [...logs].reverse(), [logs]);
 
   return (
     <div className="border rounded-lg">
@@ -441,13 +459,20 @@ function LiveExecution({ executionId }: { executionId: string }) {
           <span className="font-medium">{meta?.environment_name ?? "..."}</span>
           <span className="text-muted-foreground text-sm">· {meta?.suite_id}</span>
         </div>
-        {meta?.duration != null && (
-          <span className="text-xs text-muted-foreground">{Number(meta.duration).toFixed(2)}s</span>
-        )}
+        <div className="flex items-center gap-3">
+          {meta?.duration != null && (
+            <span className="text-xs text-muted-foreground">{Number(meta.duration).toFixed(2)}s</span>
+          )}
+          {done && (
+            <Button size="sm" variant="outline" onClick={() => setReportOpen(true)}>
+              <FileText className="w-4 h-4 mr-1" /> View report
+            </Button>
+          )}
+        </div>
       </div>
-      <ScrollArea className="h-64" ref={scrollRef as any}>
+      <ScrollArea className="h-64">
         <pre className="p-3 text-xs font-mono whitespace-pre-wrap break-words">
-          {logs.length ? logs.join("\n") : status === "running" ? "Waiting for logs..." : "(no logs)"}
+          {displayLogs.length ? displayLogs.join("\n") : status === "running" ? "Waiting for logs..." : "(no logs)"}
         </pre>
       </ScrollArea>
       {meta?.error && (
@@ -455,11 +480,16 @@ function LiveExecution({ executionId }: { executionId: string }) {
           <AlertDescription className="text-xs whitespace-pre-wrap">{meta.error}</AlertDescription>
         </Alert>
       )}
-      {(status === "completed" || status === "failed") && meta?.results && (
+      {done && meta?.results && (
         <div className="p-3 border-t space-y-1">
           <ResultsList results={meta.results} />
         </div>
       )}
+      <ReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        execution={meta}
+      />
     </div>
   );
 }
@@ -500,6 +530,57 @@ function ResultsList({ results }: { results: any[] }) {
         );
       })}
     </div>
+  );
+}
+
+// ============================================================
+// Shared report dialog
+// ============================================================
+function ReportDialog({
+  open, onOpenChange, execution,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  execution: any;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 pr-8">
+            <StatusBadge status={execution?.status ?? ""} />
+            <span className="flex-1 min-w-0 truncate">{execution?.environment_name} · {execution?.suite_id}</span>
+            {execution && (
+              <Button variant="outline" size="sm" onClick={() => exportExecutionPdf(execution)}>
+                <Download className="w-4 h-4 mr-1" />PDF
+              </Button>
+            )}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="overflow-y-auto space-y-4">
+          <div className="text-xs text-muted-foreground">
+            Started {execution && new Date(execution.start_time).toLocaleString()}
+            {execution?.duration != null && ` · ${Number(execution.duration).toFixed(2)}s`}
+          </div>
+          {execution?.error && (
+            <Alert variant="destructive">
+              <AlertDescription className="text-xs whitespace-pre-wrap">{execution.error}</AlertDescription>
+            </Alert>
+          )}
+          {Array.isArray(execution?.results) && <ResultsList results={execution.results} />}
+          {execution?.logs && (
+            <div>
+              <div className="text-sm font-medium mb-2">Logs</div>
+              <ScrollArea className="h-64 border rounded">
+                <pre className="p-3 text-xs font-mono whitespace-pre-wrap break-words">
+                  {String(execution.logs).split("\n").reverse().join("\n")}
+                </pre>
+              </ScrollArea>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -582,47 +663,13 @@ function ReportsTab() {
         )}
       </CardContent>
 
-      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 pr-8">
-              <StatusBadge status={selected?.status ?? ""} />
-              <span className="flex-1 min-w-0 truncate">{selected?.environment_name} · {selected?.suite_id}</span>
-              {selected && (
-                <Button variant="outline" size="sm" onClick={() => exportExecutionPdf(selected)}>
-                  <Download className="w-4 h-4 mr-1" />PDF
-                </Button>
-              )}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="overflow-y-auto space-y-4">
-            <div className="text-xs text-muted-foreground">
-              Started {selected && new Date(selected.start_time).toLocaleString()}
-              {selected?.duration != null && ` · ${Number(selected.duration).toFixed(2)}s`}
-            </div>
-            {selected?.error && (
-              <Alert variant="destructive">
-                <AlertDescription className="text-xs whitespace-pre-wrap">{selected.error}</AlertDescription>
-              </Alert>
-            )}
-            {Array.isArray(selected?.results) && <ResultsList results={selected.results} />}
-            {selected?.logs && (
-              <div>
-                <div className="text-sm font-medium mb-2">Logs</div>
-                <ScrollArea className="h-64 border rounded">
-                  <pre className="p-3 text-xs font-mono whitespace-pre-wrap break-words">{selected.logs}</pre>
-                </ScrollArea>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ReportDialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)} execution={selected} />
     </Card>
   );
 }
 
 // ============================================================
-// Compare (catalog diff between 2 envs)
+// Compare (catalog diff between 2 envs) — single-scroll unified table
 // ============================================================
 type CatalogRecord = { name: string } & Record<string, string | number | boolean | null>;
 type CatalogResp = { id: string; name: string; raster: CatalogRecord[]; three_d: CatalogRecord[] };
@@ -689,111 +736,144 @@ function CompareTab() {
       </Card>
 
       {result && (
-        <>
-          <CatalogCompareCard title="Raster catalog" kind="raster"
-            a={{ name: result.a.name, records: result.a.raster }}
-            b={{ name: result.b.name, records: result.b.raster }} />
-          <CatalogCompareCard title="3D catalog" kind="three_d"
-            a={{ name: result.a.name, records: result.a.three_d }}
-            b={{ name: result.b.name, records: result.b.three_d }} />
-        </>
+        <UnifiedCatalogTable
+          aName={result.a.name}
+          bName={result.b.name}
+          sections={[
+            { title: "Raster catalog", aRecs: result.a.raster, bRecs: result.b.raster },
+            { title: "3D catalog", aRecs: result.a.three_d, bRecs: result.b.three_d },
+          ]}
+        />
       )}
     </div>
   );
 }
 
-function CatalogCompareCard({
-  title, a, b,
-}: {
-  title: string; kind: "raster" | "three_d";
-  a: { name: string; records: CatalogRecord[] };
-  b: { name: string; records: CatalogRecord[] };
-}) {
-  const namesA = a.records.map((r) => r.name).sort();
-  const namesB = b.records.map((r) => r.name).sort();
-  const sameCount = a.records.length === b.records.length;
-  const sameNames = sameCount && namesA.every((n, i) => n === namesB[i]);
-  const onlyInA = namesA.filter((n) => !namesB.includes(n));
-  const onlyInB = namesB.filter((n) => !namesA.includes(n));
+type Section = { title: string; aRecs: CatalogRecord[]; bRecs: CatalogRecord[] };
 
-  // If names match, compute per-record field diffs.
-  const fieldDiffs: Array<{ name: string; changes: Array<{ field: string; a: any; b: any }> }> = [];
-  if (sameNames) {
-    for (const name of namesA) {
-      const ra = a.records.find((r) => r.name === name)!;
-      const rb = b.records.find((r) => r.name === name)!;
-      const fields = Array.from(new Set([...Object.keys(ra), ...Object.keys(rb)])).filter((f) => f !== "name");
-      const changes = fields
-        .filter((f) => JSON.stringify(ra[f]) !== JSON.stringify(rb[f]))
-        .map((f) => ({ field: f, a: ra[f], b: rb[f] }));
-      if (changes.length) fieldDiffs.push({ name, changes });
+function UnifiedCatalogTable({
+  aName, bName, sections,
+}: {
+  aName: string; bName: string; sections: Section[];
+}) {
+  type Row =
+    | { kind: "section"; title: string; summary: string; status: "identical" | "differ" | "structure" }
+    | { kind: "field"; record: string; field: string; a: any; b: any; changed: boolean; firstOfRecord: boolean };
+
+  const rows: Row[] = useMemo(() => {
+    const out: Row[] = [];
+    for (const s of sections) {
+      const namesA = s.aRecs.map((r) => r.name);
+      const namesB = s.bRecs.map((r) => r.name);
+      const sameCount = namesA.length === namesB.length;
+      const nameSetSame = sameCount &&
+        [...namesA].sort().every((n, i) => n === [...namesB].sort()[i]);
+
+      let status: "identical" | "differ" | "structure" = "identical";
+      let diffCount = 0;
+
+      const allNames = Array.from(new Set([...namesA, ...namesB]));
+      const perRecord: Array<{ name: string; changes: Array<{ field: string; a: any; b: any; changed: boolean }> }> = [];
+
+      for (const name of allNames) {
+        const ra = s.aRecs.find((r) => r.name === name);
+        const rb = s.bRecs.find((r) => r.name === name);
+        const fields = Array.from(new Set([
+          ...(ra ? Object.keys(ra) : []),
+          ...(rb ? Object.keys(rb) : []),
+        ])).filter((f) => f !== "name");
+        const changes = fields.map((f) => {
+          const av = ra?.[f];
+          const bv = rb?.[f];
+          const changed = !ra || !rb || JSON.stringify(av) !== JSON.stringify(bv);
+          if (changed) diffCount++;
+          return { field: f, a: av, b: bv, changed };
+        });
+        perRecord.push({ name, changes });
+      }
+
+      if (!nameSetSame) status = "structure";
+      else if (diffCount > 0) status = "differ";
+
+      out.push({
+        kind: "section",
+        title: s.title,
+        summary: `${namesA.length} vs ${namesB.length} records${diffCount ? ` · ${diffCount} field diff${diffCount === 1 ? "" : "s"}` : ""}`,
+        status,
+      });
+
+      for (const rec of perRecord) {
+        rec.changes.forEach((c, i) => {
+          out.push({
+            kind: "field",
+            record: rec.name,
+            field: c.field,
+            a: c.a,
+            b: c.b,
+            changed: c.changed,
+            firstOfRecord: i === 0,
+          });
+        });
+      }
     }
-  }
+    return out;
+  }, [sections]);
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="flex items-center gap-2">
-          {title}
-          {sameNames ? (
-            fieldDiffs.length === 0 ? (
-              <Badge className="bg-green-600 hover:bg-green-600"><Equal className="w-3 h-3 mr-1" />identical</Badge>
-            ) : (
-              <Badge className="bg-amber-600 hover:bg-amber-600"><AlertTriangle className="w-3 h-3 mr-1" />{fieldDiffs.length} differ</Badge>
-            )
-          ) : (
-            <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />structure differs</Badge>
-          )}
-        </CardTitle>
-        <div className="text-xs text-muted-foreground">
-          {a.records.length} vs {b.records.length} records
-        </div>
+      <CardHeader>
+        <CardTitle>Catalog comparison</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {!sameNames && (
-          <Alert>
-            <AlertDescription className="text-xs">
-              Record sets differ — showing side-by-side lists.
-              {onlyInA.length > 0 && <> Only in <b>{a.name}</b>: {onlyInA.join(", ")}.</>}
-              {onlyInB.length > 0 && <> Only in <b>{b.name}</b>: {onlyInB.join(", ")}.</>}
-            </AlertDescription>
-          </Alert>
-        )}
-
-        <div className="grid md:grid-cols-2 gap-3">
-          <SideList title={a.name} records={a.records} />
-          <SideList title={b.name} records={b.records} />
-        </div>
-
-        {sameNames && (
-          <div>
-            <div className="text-sm font-medium mb-2">Field-level differences</div>
-            {fieldDiffs.length === 0 ? (
-              <div className="text-sm text-muted-foreground flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-green-600" />
-                All {a.records.length} records match on every field.
-              </div>
-            ) : (
-              <div className="border rounded-md overflow-hidden">
-                <div className="grid grid-cols-[minmax(140px,1fr)_120px_1fr_1fr] text-xs font-medium bg-muted/60 px-3 py-2">
-                  <div>Record</div><div>Field</div><div>{a.name}</div><div>{b.name}</div>
-                </div>
-                <div className="divide-y">
-                  {fieldDiffs.map((d) =>
-                    d.changes.map((c, i) => (
-                      <div key={d.name + c.field} className="grid grid-cols-[minmax(140px,1fr)_120px_1fr_1fr] text-xs px-3 py-2">
-                        <div className="font-medium">{i === 0 ? d.name : ""}</div>
-                        <div className="text-muted-foreground">{c.field}</div>
-                        <div className="font-mono text-amber-700 dark:text-amber-400 break-all">{fmtVal(c.a)}</div>
-                        <div className="font-mono text-amber-700 dark:text-amber-400 break-all">{fmtVal(c.b)}</div>
-                      </div>
-                    )),
-                  )}
-                </div>
-              </div>
-            )}
+      <CardContent>
+        <div className="border rounded-md overflow-hidden">
+          <div className="grid grid-cols-[180px_160px_1fr_1fr_60px] text-xs font-medium bg-muted/60 px-3 py-2 border-b sticky top-0">
+            <div>Record</div>
+            <div>Field</div>
+            <div className="truncate">{aName}</div>
+            <div className="truncate">{bName}</div>
+            <div className="text-right">Δ</div>
           </div>
-        )}
+          <ScrollArea className="h-[70vh]">
+            <div className="divide-y">
+              {rows.map((r, i) =>
+                r.kind === "section" ? (
+                  <div key={i} className="px-3 py-2 bg-muted/30 flex items-center justify-between">
+                    <div className="font-semibold text-sm">{r.title}</div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-muted-foreground">{r.summary}</span>
+                      {r.status === "identical" ? (
+                        <Badge className="bg-green-600 hover:bg-green-600"><Equal className="w-3 h-3 mr-1" />identical</Badge>
+                      ) : r.status === "differ" ? (
+                        <Badge className="bg-amber-600 hover:bg-amber-600"><AlertTriangle className="w-3 h-3 mr-1" />differ</Badge>
+                      ) : (
+                        <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />structure</Badge>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    key={i}
+                    className={`grid grid-cols-[180px_160px_1fr_1fr_60px] text-xs px-3 py-1.5 ${
+                      r.changed ? "bg-amber-50 dark:bg-amber-950/20" : ""
+                    }`}
+                  >
+                    <div className="font-medium truncate">{r.firstOfRecord ? r.record : ""}</div>
+                    <div className="text-muted-foreground truncate">{r.field}</div>
+                    <div className={`font-mono break-all ${r.changed ? "text-amber-700 dark:text-amber-400" : ""}`}>{fmtVal(r.a)}</div>
+                    <div className={`font-mono break-all ${r.changed ? "text-amber-700 dark:text-amber-400" : ""}`}>{fmtVal(r.b)}</div>
+                    <div className="text-right">
+                      {r.changed ? (
+                        <AlertTriangle className="w-3.5 h-3.5 inline text-amber-600" />
+                      ) : (
+                        <Equal className="w-3.5 h-3.5 inline text-muted-foreground/60" />
+                      )}
+                    </div>
+                  </div>
+                ),
+              )}
+            </div>
+          </ScrollArea>
+        </div>
       </CardContent>
     </Card>
   );
@@ -804,27 +884,4 @@ function fmtVal(v: unknown) {
   if (v === null) return "null";
   if (typeof v === "string") return v;
   return JSON.stringify(v);
-}
-
-function SideList({ title, records }: { title: string; records: CatalogRecord[] }) {
-  return (
-    <div className="border rounded-md">
-      <div className="px-3 py-2 border-b bg-muted/40 text-sm font-medium flex items-center justify-between">
-        <span>{title}</span>
-        <Badge variant="outline">{records.length}</Badge>
-      </div>
-      <ScrollArea className="h-56">
-        <ul className="divide-y text-xs">
-          {records.map((r) => (
-            <li key={r.name} className="px-3 py-2">
-              <div className="font-medium">{r.name}</div>
-              <div className="text-muted-foreground font-mono truncate">
-                {Object.entries(r).filter(([k]) => k !== "name").map(([k, v]) => `${k}=${fmtVal(v)}`).join(" · ")}
-              </div>
-            </li>
-          ))}
-        </ul>
-      </ScrollArea>
-    </div>
-  );
 }

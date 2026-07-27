@@ -1,6 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,14 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FlaskConical } from "lucide-react";
 
-// Naive constant credentials — anyone who knows them can log in.
-const NAIVE_USER = "admin";
-const NAIVE_PASS = "admin";
-// Backing Supabase account used transparently so server functions still work.
-const BACKING_EMAIL = "admin@sanity.local";
-const BACKING_PASSWORD = "sanity-admin-shared-secret";
-
 export const Route = createFileRoute("/auth")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Sign in — Sanity Agent Runner" },
@@ -25,26 +18,6 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
-async function ensureBackingSession() {
-  const { error } = await supabase.auth.signInWithPassword({
-    email: BACKING_EMAIL,
-    password: BACKING_PASSWORD,
-  });
-  if (!error) return;
-  // Account doesn't exist yet — create it, then sign in.
-  const { error: signUpErr } = await supabase.auth.signUp({
-    email: BACKING_EMAIL,
-    password: BACKING_PASSWORD,
-    options: { emailRedirectTo: window.location.origin + "/dashboard" },
-  });
-  if (signUpErr && !/registered/i.test(signUpErr.message)) throw signUpErr;
-  const { error: retryErr } = await supabase.auth.signInWithPassword({
-    email: BACKING_EMAIL,
-    password: BACKING_PASSWORD,
-  });
-  if (retryErr) throw retryErr;
-}
-
 function AuthPage() {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
@@ -53,22 +26,30 @@ function AuthPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/dashboard", replace: true });
-    });
+    fetch("/api/session", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.user) navigate({ to: "/dashboard", replace: true });
+      })
+      .catch(() => {});
   }, [navigate]);
 
   const signIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    if (username !== NAIVE_USER || password !== NAIVE_PASS) {
-      setLoading(false);
-      setError("Invalid username or password.");
-      return;
-    }
     try {
-      await ensureBackingSession();
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ username, password }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(body?.error ?? "Sign-in failed");
+        return;
+      }
       navigate({ to: "/dashboard", replace: true });
     } catch (e: any) {
       setError(e?.message ?? "Sign-in failed");
@@ -105,7 +86,7 @@ function AuthPage() {
             </Button>
             <Alert>
               <AlertDescription className="text-xs">
-                Demo credentials — <code className="bg-muted px-1 rounded">admin</code> / <code className="bg-muted px-1 rounded">admin</code>
+                Credentials are set at deploy time via <code className="bg-muted px-1 rounded">ADMIN_USERNAME</code> / <code className="bg-muted px-1 rounded">ADMIN_PASSWORD</code>.
               </AlertDescription>
             </Alert>
           </form>

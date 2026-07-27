@@ -1,10 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { FlaskConical, Activity, FileText, Server } from "lucide-react";
 
 export const Route = createFileRoute("/")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Sanity Agent Runner" },
@@ -20,10 +20,13 @@ function Landing() {
   const navigate = useNavigate();
   const [checked, setChecked] = useState(false);
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/dashboard", replace: true });
-      else setChecked(true);
-    });
+    fetch("/api/session", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.user) navigate({ to: "/dashboard", replace: true });
+        else setChecked(true);
+      })
+      .catch(() => setChecked(true));
   }, [navigate]);
   if (!checked) return <div className="min-h-screen bg-background" />;
 

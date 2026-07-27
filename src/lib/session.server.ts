@@ -1,6 +1,10 @@
 import { createHmac, timingSafeEqual, randomBytes } from "node:crypto";
 import { createMiddleware } from "@tanstack/react-start";
-import { getCookie, setCookie, deleteCookie } from "@tanstack/react-start/server";
+
+async function h3() {
+  return await import("@tanstack/react-start/server");
+}
+
 
 const COOKIE_NAME = "sar_sid";
 const MAX_AGE_SECONDS = 60 * 60 * 12; // 12h

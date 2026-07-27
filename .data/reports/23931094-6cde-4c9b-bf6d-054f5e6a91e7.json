@@ -1,0 +1,39 @@
+{
+  "id": "23931094-6cde-4c9b-bf6d-054f5e6a91e7",
+  "start_time": "2026-07-27T12:51:41.065Z",
+  "end_time": "2026-07-27T12:51:48.492Z",
+  "duration": 7.427998334592592,
+  "results": [
+    {
+      "name": "invoice_pdf_render",
+      "outcome": "passed",
+      "duration": 0.7429940526513686,
+      "message": "OK"
+    },
+    {
+      "name": "tax_calc_eu",
+      "outcome": "passed",
+      "duration": 1.1985019121827234,
+      "message": "OK"
+    },
+    {
+      "name": "webhook_dispatch",
+      "outcome": "failed",
+      "duration": 1.475678805425599,
+      "message": "Signature mismatch on retry #2."
+    },
+    {
+      "name": "refund_flow",
+      "outcome": "passed",
+      "duration": 1.045454541305185,
+      "message": "OK"
+    }
+  ],
+  "logs": "[00:00] bootstrapping runner\n[00:00] loading suite 'billing'\n[00:00] resolved 4 test(s)\n[00:01] warming HTTP client\n[00:01] auth handshake OK\n[00:01] ▶ invoice_pdf_render\n[00:01]   step: prepare fixtures\n[00:02]   step: exercise endpoint\n[00:02]   ✓ invoice_pdf_render passed\n[00:02] ▶ tax_calc_eu\n[00:02]   step: prepare fixtures\n[00:03]   step: exercise endpoint\n[00:03]   ✓ tax_calc_eu passed\n[00:03] ▶ webhook_dispatch\n[00:03]   step: prepare fixtures\n[00:04]   step: exercise endpoint\n[00:04]   ✓ webhook_dispatch passed\n[00:04] ▶ refund_flow\n[00:04]   step: prepare fixtures\n[00:04]   step: exercise endpoint\n[00:05]   ✓ refund_flow passed\n[00:07] finalizing report\n[00:08] done",
+  "error": null,
+  "environment_name": "production (demo)",
+  "suite_id": "billing",
+  "test_ids": null,
+  "agent_execution_id": "demo:32cc699e-68dc-4203-bc60-94c7e0673933",
+  "status": "failed"
+}

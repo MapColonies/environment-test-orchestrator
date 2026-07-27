@@ -69,11 +69,11 @@ export function readSessionFromCookieHeader(header: string | null | undefined): 
 
 export function makeSessionSetCookie(user: string): string {
   const value = signSessionValue(user);
-  return `${COOKIE_NAME}=${encodeURIComponent(value)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${MAX_AGE_SECONDS}`;
+  return `${COOKIE_NAME}=${encodeURIComponent(value)}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${MAX_AGE_SECONDS}`;
 }
 
 export function makeSessionClearCookie(): string {
-  return `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
+  return `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=0`;
 }
 
 export function verifyCredentials(username: string, password: string): boolean {

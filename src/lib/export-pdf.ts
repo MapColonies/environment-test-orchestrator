@@ -81,10 +81,15 @@ export function exportExecutionPdf(exec: any) {
       text(`Suite: ${suiteId}  (${items.length} tests, ${p} passed, ${f} failed)`, { size: 12, bold: true, color: [40, 40, 40] });
       items.forEach((r: any, i: number) => {
         const ok = r.outcome === "passed" || r.outcome === "success";
+        const warnOnly = !ok && Array.isArray(r.markers) && r.markers.some((x: any) => /^warn(n)?ing$/i.test(String(x)));
+        const rawName = r.name ?? r.test_id ?? r.id ?? "Test";
+        const last = String(rawName).includes("::") ? String(rawName).split("::").pop()! : String(rawName).split("/").pop() ?? String(rawName);
+        const pretty = last.replace(/^test[_-]+/i, "").replace(/_/g, " ").trim() || String(rawName);
+        const color: [number, number, number] = ok ? [30, 120, 60] : warnOnly ? [180, 140, 20] : [180, 30, 30];
         ensure(20);
-        text(`${i + 1}. ${r.name ?? r.test_id ?? r.id ?? "Test"}  —  ${r.outcome ?? "unknown"}`, {
+        text(`${i + 1}. ${pretty}  —  ${r.outcome ?? "unknown"}${warnOnly ? "  (warning only)" : ""}`, {
           bold: true,
-          color: ok ? [30, 120, 60] : [180, 30, 30],
+          color,
           indent: 8,
         });
         if (r.description) text(`Description: ${r.description}`, { indent: 20, color: [90, 90, 90] });

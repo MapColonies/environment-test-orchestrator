@@ -507,6 +507,17 @@ function StatusBadge({ status }: { status: string }) {
   return <Badge variant="outline"><Circle className="w-3 h-3 mr-1" />{status}</Badge>;
 }
 
+function formatTestName(raw: any): string {
+  const s = String(raw ?? "");
+  const last = s.includes("::") ? s.split("::").pop()! : s.split("/").pop() ?? s;
+  return last.replace(/^test[_-]+/i, "").replace(/_/g, " ").trim() || s;
+}
+function hasWarningMarker(r: any): boolean {
+  const m = r?.markers;
+  if (!Array.isArray(m)) return false;
+  return m.some((x: any) => /^warn(n)?ing$/i.test(String(x)));
+}
+
 function ResultsList({ results }: { results: any[] }) {
   if (!Array.isArray(results)) return null;
   // Group by suite_id (fallback to "(ungrouped)")
@@ -531,26 +542,44 @@ function ResultsList({ results }: { results: any[] }) {
             </div>
             {items.map((r, i) => {
               const ok = r.outcome === "passed" || r.outcome === "success";
+              const warnOnly = !ok && hasWarningMarker(r);
+              const Icon = ok ? CheckCircle2 : XCircle;
+              const iconClass = ok
+                ? "text-green-600"
+                : warnOnly
+                ? "text-yellow-500"
+                : "text-destructive";
               return (
-                <div key={i} className="flex items-start gap-2 text-sm">
-                  {ok ? (
-                    <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 shrink-0" />
-                  ) : (
-                    <XCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
-                  )}
+                <div
+                  key={i}
+                  className={`flex items-start gap-2 text-sm rounded px-1 ${
+                    warnOnly ? "bg-yellow-500/10 border-l-2 border-yellow-500" : ""
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 mt-0.5 shrink-0 ${iconClass}`} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium break-all">{r.name}</span>
+                      <span className="font-medium break-all">{formatTestName(r.name)}</span>
                       {r.duration != null && (
                         <span className="text-xs text-muted-foreground">{Number(r.duration).toFixed(2)}s</span>
                       )}
-                      <Badge variant={ok ? "outline" : "destructive"} className="text-[10px]">{r.outcome}</Badge>
+                      <Badge
+                        variant={ok ? "outline" : warnOnly ? "outline" : "destructive"}
+                        className={`text-[10px] ${warnOnly ? "border-yellow-500 text-yellow-600 dark:text-yellow-400" : ""}`}
+                      >
+                        {r.outcome}
+                      </Badge>
+                      {warnOnly && (
+                        <Badge variant="outline" className="text-[10px] border-yellow-500 text-yellow-600 dark:text-yellow-400">
+                          warning only
+                        </Badge>
+                      )}
                     </div>
                     {r.description && (
                       <div className="text-xs mt-0.5 text-muted-foreground italic">{r.description}</div>
                     )}
                     {r.message && (
-                      <div className={`text-xs mt-1 whitespace-pre-wrap ${ok ? "text-muted-foreground" : "text-destructive"}`}>
+                      <div className={`text-xs mt-1 whitespace-pre-wrap ${ok ? "text-muted-foreground" : warnOnly ? "text-yellow-700 dark:text-yellow-400" : "text-destructive"}`}>
                         {r.message}
                       </div>
                     )}

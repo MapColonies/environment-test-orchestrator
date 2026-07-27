@@ -1,0 +1,47 @@
+{
+  "id": "c956b1da-f955-4e0b-9990-a486da782c0d",
+  "start_time": "2026-07-27T15:31:27.769Z",
+  "end_time": "2026-07-27T15:31:36.359Z",
+  "duration": 8,
+  "results": [
+    {
+      "name": "invoice_pdf_render",
+      "suite_id": "billing",
+      "outcome": "passed",
+      "duration": 0.7313171127552582,
+      "message": "OK",
+      "description": "Verifies that \"invoice pdf render\" behaves as expected."
+    },
+    {
+      "name": "tax_calc_eu",
+      "suite_id": "billing",
+      "outcome": "passed",
+      "duration": 0.421771585542372,
+      "message": "OK",
+      "description": "Verifies that \"tax calc eu\" behaves as expected."
+    },
+    {
+      "name": "webhook_dispatch",
+      "suite_id": "billing",
+      "outcome": "passed",
+      "duration": 1.8714702346072571,
+      "message": "OK",
+      "description": "Verifies that \"webhook dispatch\" behaves as expected."
+    },
+    {
+      "name": "refund_flow",
+      "suite_id": "billing",
+      "outcome": "passed",
+      "duration": 1.732033202950793,
+      "message": "OK",
+      "description": "Verifies that \"refund flow\" behaves as expected."
+    }
+  ],
+  "logs": "[00:00] bootstrapping runner\n[00:00] loading suite 'billing'\n[00:00] resolved 4 test(s)\n[00:01] warming HTTP client\n[00:01] auth handshake OK\n[00:01] ▶ invoice_pdf_render\n[00:01]   step: prepare fixtures\n[00:02]   step: exercise endpoint\n[00:02]   ✓ invoice_pdf_render passed\n[00:02] ▶ tax_calc_eu\n[00:02]   step: prepare fixtures\n[00:03]   step: exercise endpoint\n[00:03]   ✓ tax_calc_eu passed\n[00:03] ▶ webhook_dispatch\n[00:03]   step: prepare fixtures\n[00:04]   step: exercise endpoint\n[00:04]   ✓ webhook_dispatch passed\n[00:04] ▶ refund_flow\n[00:04]   step: prepare fixtures\n[00:04]   step: exercise endpoint\n[00:05]   ✓ refund_flow passed\n[00:07] finalizing report\n[00:08] done",
+  "error": null,
+  "environment_name": "dev (demo)",
+  "suite_id": "billing",
+  "test_ids": null,
+  "agent_execution_id": "demo:fa50354e-87a5-4ef0-9859-16085ab9f246",
+  "status": "completed"
+}

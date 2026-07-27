@@ -1,10 +1,4 @@
 import { createHmac, timingSafeEqual, randomBytes } from "node:crypto";
-import { createMiddleware } from "@tanstack/react-start";
-
-async function h3() {
-  return await import("@tanstack/react-start/server");
-}
-
 
 const COOKIE_NAME = "sar_sid";
 const MAX_AGE_SECONDS = 60 * 60 * 12; // 12h
@@ -12,21 +6,16 @@ const MAX_AGE_SECONDS = 60 * 60 * 12; // 12h
 function getSecret(): string {
   const s = process.env.SESSION_SECRET;
   if (s && s.length >= 8) return s;
-  // Dev fallback; deployments MUST set SESSION_SECRET.
-  if (!process.env.SESSION_SECRET) {
-    // Warn once
-    if (!(globalThis as any).__sar_secret_warned) {
-      (globalThis as any).__sar_secret_warned = true;
-      console.warn("[session] SESSION_SECRET not set — using ephemeral dev secret");
-    }
-    let dev = (globalThis as any).__sar_dev_secret as string | undefined;
-    if (!dev) {
-      dev = randomBytes(32).toString("hex");
-      (globalThis as any).__sar_dev_secret = dev;
-    }
-    return dev;
+  if (!(globalThis as any).__sar_secret_warned) {
+    (globalThis as any).__sar_secret_warned = true;
+    console.warn("[session] SESSION_SECRET not set — using ephemeral dev secret");
   }
-  return s!;
+  let dev = (globalThis as any).__sar_dev_secret as string | undefined;
+  if (!dev) {
+    dev = randomBytes(32).toString("hex");
+    (globalThis as any).__sar_dev_secret = dev;
+  }
+  return dev;
 }
 
 function b64url(buf: Buffer | string) {
@@ -37,31 +26,15 @@ function sign(payload: string, secret: string): string {
   return createHmac("sha256", secret).update(payload).digest("base64url");
 }
 
-export async function issueSessionCookie(user: string) {
+function signSessionValue(user: string): string {
   const secret = getSecret();
   const body = JSON.stringify({ u: user, exp: Math.floor(Date.now() / 1000) + MAX_AGE_SECONDS });
   const p = b64url(body);
   const s = sign(p, secret);
-  const value = `${p}.${s}`;
-  const { setCookie } = await h3();
-  setCookie(COOKIE_NAME, value, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: true,
-    path: "/",
-    maxAge: MAX_AGE_SECONDS,
-  });
+  return `${p}.${s}`;
 }
 
-export async function clearSessionCookie() {
-  const { deleteCookie } = await h3();
-  deleteCookie(COOKIE_NAME, { path: "/" });
-}
-
-export async function readSessionCookie(): Promise<{ user: string } | null> {
-  const { getCookie } = await h3();
-  const raw = getCookie(COOKIE_NAME);
-  if (!raw) return null;
+function parseSessionValue(raw: string): { user: string } | null {
   const [p, s] = raw.split(".");
   if (!p || !s) return null;
   const secret = getSecret();
@@ -79,6 +52,29 @@ export async function readSessionCookie(): Promise<{ user: string } | null> {
   }
 }
 
+function parseCookieHeader(header: string | null | undefined, name: string): string | undefined {
+  if (!header) return undefined;
+  for (const part of header.split(";")) {
+    const [k, ...rest] = part.trim().split("=");
+    if (k === name) return decodeURIComponent(rest.join("="));
+  }
+  return undefined;
+}
+
+export function readSessionFromCookieHeader(header: string | null | undefined): { user: string } | null {
+  const raw = parseCookieHeader(header, COOKIE_NAME);
+  if (!raw) return null;
+  return parseSessionValue(raw);
+}
+
+export function makeSessionSetCookie(user: string): string {
+  const value = signSessionValue(user);
+  return `${COOKIE_NAME}=${encodeURIComponent(value)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${MAX_AGE_SECONDS}`;
+}
+
+export function makeSessionClearCookie(): string {
+  return `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
+}
 
 export function verifyCredentials(username: string, password: string): boolean {
   const eu = process.env.ADMIN_USERNAME || "admin";
@@ -91,11 +87,3 @@ export function verifyCredentials(username: string, password: string): boolean {
   const okP = p.length === epb.length && timingSafeEqual(p, epb);
   return okU && okP;
 }
-
-export const requireAuth = createMiddleware({ type: "function" }).server(async ({ next }) => {
-  const session = await readSessionCookie();
-  if (!session) {
-    throw new Response("Unauthorized", { status: 401 });
-  }
-  return next({ context: { user: session.user } });
-});

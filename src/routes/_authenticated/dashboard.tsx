@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import {
   FlaskConical, LogOut, RefreshCw, Play, CheckCircle2, XCircle,
   Loader2, Server, Activity, FileText, ChevronRight, Circle, Download, Sparkles,
+  GitCompareArrows, Equal, AlertTriangle,
 } from "lucide-react";
 import { exportExecutionPdf } from "@/lib/export-pdf";
 

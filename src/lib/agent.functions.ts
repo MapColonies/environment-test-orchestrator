@@ -218,6 +218,80 @@ export const getCapabilities = createServerFn({ method: "POST" })
   });
 
 // ============================================================
+// Catalogs (raster + three_d)
+// ============================================================
+type CatalogRecord = { name: string; [k: string]: unknown };
+type CatalogResponse = { raster: CatalogRecord[]; three_d: CatalogRecord[] };
+
+const DEMO_RASTER_NAMES = ["basemap-world", "elevation-30m", "landcover-2024", "sat-truecolor", "hillshade"];
+const DEMO_THREEDS_NAMES = ["city-nyc", "city-sf", "terrain-alps", "buildings-eu", "assets-poi"];
+
+function demoCatalog(envName: string): CatalogResponse {
+  const isProd = envName.toLowerCase().includes("prod");
+  const isStaging = envName.toLowerCase().includes("staging");
+  const mkRaster = (name: string, i: number): CatalogRecord => ({
+    name,
+    version: isProd ? `1.${i}.0` : isStaging ? `1.${i}.1-rc` : `2.${i}.0-dev`,
+    checksum: isProd ? `sha256:aaaa${i}` : isStaging ? `sha256:bbbb${i}` : `sha256:cccc${i}`,
+    tiles: 1000 + i * 10 + (isProd ? 0 : isStaging ? 5 : 12),
+    updated_at: isProd ? "2026-07-01" : isStaging ? "2026-07-15" : "2026-07-25",
+  });
+  const mkThree = (name: string, i: number): CatalogRecord => ({
+    name,
+    version: isProd ? `3.${i}.0` : isStaging ? `3.${i}.2` : `4.0.${i}-dev`,
+    lod: isProd ? 3 : isStaging ? 3 : 4,
+    triangles: 50_000 + i * 1200 + (isProd ? 0 : isStaging ? 100 : 800),
+    textures: isProd ? "webp" : isStaging ? "webp" : "ktx2",
+  });
+  return {
+    raster: DEMO_RASTER_NAMES.map(mkRaster),
+    three_d: DEMO_THREEDS_NAMES.map(mkThree),
+  };
+}
+
+async function fetchCatalog(env: EnvConfig): Promise<CatalogResponse> {
+  if (env.demo) return demoCatalog(env.name);
+  const [rasterRes, threeRes] = await Promise.all([
+    agentFetch(env.base_url, env.api_key, "/catalog/raster", { method: "GET" }),
+    agentFetch(env.base_url, env.api_key, "/catalog/three-d", { method: "GET" }),
+  ]);
+  const parse = async (r: Response): Promise<CatalogRecord[]> => {
+    if (!r.ok) throw new Error(`catalog ${r.status}`);
+    const body = await r.json();
+    if (Array.isArray(body)) return body as CatalogRecord[];
+    if (Array.isArray(body?.items)) return body.items as CatalogRecord[];
+    if (Array.isArray(body?.records)) return body.records as CatalogRecord[];
+    return [];
+  };
+  return { raster: await parse(rasterRes), three_d: await parse(threeRes) };
+}
+
+export const getCatalogs = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ envId: z.string().min(1) }).parse(d))
+  .handler(async ({ data }) => {
+    const env = getEnv(data.envId);
+    if (!env) throw new Error("Unknown env");
+    return await fetchCatalog(env);
+  });
+
+export const compareCatalogs = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ envIdA: z.string().min(1), envIdB: z.string().min(1) }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    const envA = getEnv(data.envIdA);
+    const envB = getEnv(data.envIdB);
+    if (!envA || !envB) throw new Error("Unknown env");
+    const [a, b] = await Promise.all([fetchCatalog(envA), fetchCatalog(envB)]);
+    return {
+      a: { id: envA.id, name: envA.name, ...a },
+      b: { id: envB.id, name: envB.name, ...b },
+    };
+  });
+
+// ============================================================
 // Executions
 // ============================================================
 export const startExecution = createServerFn({ method: "POST" })

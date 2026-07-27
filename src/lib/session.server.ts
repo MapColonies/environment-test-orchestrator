@@ -93,7 +93,7 @@ export function verifyCredentials(username: string, password: string): boolean {
 }
 
 export const requireAuth = createMiddleware({ type: "function" }).server(async ({ next }) => {
-  const session = readSessionCookie();
+  const session = await readSessionCookie();
   if (!session) {
     throw new Response("Unauthorized", { status: 401 });
   }

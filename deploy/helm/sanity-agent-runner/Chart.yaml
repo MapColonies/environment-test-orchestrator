@@ -1,0 +1,6 @@
+apiVersion: v2
+name: sanity-agent-runner
+description: Sanity Agent Runner — trigger sanity suites across environments, stream logs, store reports on a PV.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

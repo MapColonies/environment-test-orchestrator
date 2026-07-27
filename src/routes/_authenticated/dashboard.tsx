@@ -57,7 +57,7 @@ function Dashboard() {
     seed().then((r) => {
       if ((r.inserted ?? 0) > 0) {
         qc.invalidateQueries({ queryKey: ["executions"] });
-        toast.success(`Loaded ${r.inserted} demo report${r.inserted === 1 ? "" : "s"}`);
+        toast.success(`Loaded ${r.inserted} demo reports`);
       }
     }).catch(() => { /* non-fatal */ });
   }, [config?.demoMode]); // eslint-disable-line

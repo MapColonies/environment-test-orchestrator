@@ -54,7 +54,7 @@ function Dashboard() {
 
   useEffect(() => {
     if (!config?.demoMode) return;
-    seed().then((r) => {
+    seed().then((r: any) => {
       if ((r.inserted ?? 0) > 0) {
         qc.invalidateQueries({ queryKey: ["executions"] });
         toast.success(`Loaded ${r.inserted} demo reports`);
@@ -133,7 +133,7 @@ function HealthTab() {
   const check = useCallback(async () => {
     setRefreshing(true);
     const results = await Promise.all(
-      envs.map((e: any) => health({ data: { envId: e.id } }).catch((err) => ({
+      envs.map((e: any) => health({ data: { envId: e.id } }).catch((err: any) => ({
         envId: e.id, envName: e.name, up: false, status: 0, error: String(err),
       }))),
     );
@@ -253,7 +253,7 @@ function RunTab() {
       }));
       const res = await start({ data: { runs } });
       toast.success(`Started ${res.executions.length} execution(s)`);
-      setRunningIds(res.executions.map((e) => e.executionRowId));
+      setRunningIds(res.executions.map((e: any) => e.executionRowId));
       qc.invalidateQueries({ queryKey: ["executions"] });
     } catch (e: any) {
       toast.error(e.message);
@@ -425,7 +425,7 @@ function LiveExecution({ executionId }: { executionId: string }) {
   const stopped = useRef(false);
 
   useEffect(() => {
-    get({ data: { id: executionId } }).then((r) => setMeta(r));
+    get({ data: { id: executionId } }).then((r: any) => setMeta(r));
   }, [executionId, get]);
 
   useEffect(() => {

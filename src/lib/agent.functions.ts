@@ -293,6 +293,32 @@ export const compareCatalogs = createServerFn({ method: "POST" })
   });
 
 // ============================================================
+// CORS test targets (per env)
+// ============================================================
+const DEMO_CORS_TARGETS = [
+  { name: "Raster geoserver", url: "https://raster-ingestion-qa-geoserver-api-route-qa.apps.j1lk3njp.eastus.aroapp.io/workspaces" },
+  { name: "Raster pycsw", url: "https://catalog-int.mapcolonies.net/api/raster/v1" },
+  { name: "3D pycsw", url: "https://serving-3d-pycsw-all-nginx-route-integration.apps.j1lk3njp.eastus.aroapp.io/" },
+  { name: "Raster MAPPROXY serving", url: "https://catalog-int.mapcolonies.net/api/raster/v1" },
+  { name: "Raster", url: "https://query-qa.mapcolonies.net/api/raster/v1/layer-parts/wfs" },
+  { name: "3D MAPPROXY serving", url: "https://tiles-int.mapcolonies.net/api/3d/v1/b3dm" },
+];
+
+export const getCorsTargets = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ envId: z.string().min(1) }).parse(d))
+  .handler(async ({ data }) => {
+    const env = getEnv(data.envId);
+    if (!env) throw new Error("Unknown env");
+    if (env.demo) return DEMO_CORS_TARGETS;
+    const res = await agentFetch(env.base_url, env.api_key, "/cors-test", { method: "GET" });
+    if (!res.ok) throw new Error(`cors-test fetch failed: ${res.status}`);
+    const body = await res.json();
+    if (Array.isArray(body)) return body;
+    return [];
+  });
+
+// ============================================================
 // Executions
 // ============================================================
 export const startExecution = createServerFn({ method: "POST" })

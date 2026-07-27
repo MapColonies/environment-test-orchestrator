@@ -82,7 +82,7 @@ function Dashboard() {
             )}
           </div>
           <div className="flex items-center gap-3 text-sm">
-            <span className="text-muted-foreground">{userEmail}</span>
+            <span className="text-muted-foreground">admin</span>
             <Button variant="ghost" size="sm" onClick={signOut}>
               <LogOut className="w-4 h-4 mr-1" /> Sign out
             </Button>

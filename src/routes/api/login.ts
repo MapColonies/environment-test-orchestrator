@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { issueSessionCookie, verifyCredentials } from "@/lib/session.server";
+import { makeSessionSetCookie, verifyCredentials } from "@/lib/session.server";
 
 export const Route = createFileRoute("/api/login")({
   server: {
@@ -19,8 +19,10 @@ export const Route = createFileRoute("/api/login")({
         if (!verifyCredentials(username, password)) {
           return Response.json({ ok: false, error: "Invalid username or password" }, { status: 401 });
         }
-        issueSessionCookie(username);
-        return Response.json({ ok: true, user: username });
+        return Response.json(
+          { ok: true, user: username },
+          { headers: { "Set-Cookie": makeSessionSetCookie(username) } },
+        );
       },
     },
   },

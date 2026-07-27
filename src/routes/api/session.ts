@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { readSessionCookie } from "@/lib/session.server";
+import { readSessionFromCookieHeader } from "@/lib/session.server";
 
 export const Route = createFileRoute("/api/session")({
   server: {
     handlers: {
-      GET: async () => {
-        const s = await readSessionCookie();
+      GET: async ({ request }) => {
+        const s = readSessionFromCookieHeader(request.headers.get("cookie"));
         return Response.json({ user: s?.user ?? null });
       },
     },

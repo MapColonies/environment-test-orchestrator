@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireAuth } from "@/lib/session.server";
 import {
   insertExecution,
   getExecutionById,
@@ -167,7 +166,6 @@ function demoResults(suiteId: string, tests: string[], envName: string) {
 // Environments (read-only)
 // ============================================================
 export const listEnvironments = createServerFn({ method: "GET" })
-  .middleware([requireAuth])
   .handler(async () => {
     return getConfiguredEnvs().map((e) => ({
       id: e.id,
@@ -178,14 +176,12 @@ export const listEnvironments = createServerFn({ method: "GET" })
   });
 
 export const getRunnerConfig = createServerFn({ method: "GET" })
-  .middleware([requireAuth])
   .handler(async () => ({ demoMode: isDemoMode() }));
 
 // ============================================================
 // Health & capabilities
 // ============================================================
 export const getAgentHealth = createServerFn({ method: "POST" })
-  .middleware([requireAuth])
   .inputValidator((d) => z.object({ envId: z.string().min(1) }).parse(d))
   .handler(async ({ data }) => {
     const env = getEnv(data.envId);
@@ -203,7 +199,6 @@ export const getAgentHealth = createServerFn({ method: "POST" })
   });
 
 export const getCapabilities = createServerFn({ method: "POST" })
-  .middleware([requireAuth])
   .inputValidator((d) => z.object({ envId: z.string().min(1) }).parse(d))
   .handler(async ({ data }) => {
     const env = getEnv(data.envId);
@@ -265,7 +260,6 @@ async function fetchCatalog(env: EnvConfig): Promise<CatalogResponse> {
 }
 
 export const getCatalogs = createServerFn({ method: "POST" })
-  .middleware([requireAuth])
   .inputValidator((d) => z.object({ envId: z.string().min(1) }).parse(d))
   .handler(async ({ data }) => {
     const env = getEnv(data.envId);
@@ -274,7 +268,6 @@ export const getCatalogs = createServerFn({ method: "POST" })
   });
 
 export const compareCatalogs = createServerFn({ method: "POST" })
-  .middleware([requireAuth])
   .inputValidator((d) => z.object({ envIdA: z.string().min(1), envIdB: z.string().min(1) }).parse(d))
   .handler(async ({ data }) => {
     const envA = getEnv(data.envIdA);
@@ -300,7 +293,6 @@ const DEMO_CORS_TARGETS: CorsTarget[] = [
 ];
 
 export const getCorsTargets = createServerFn({ method: "POST" })
-  .middleware([requireAuth])
   .inputValidator((d) => z.object({ envId: z.string().min(1) }).parse(d))
   .handler(async ({ data }) => {
     const env = getEnv(data.envId);
@@ -325,7 +317,6 @@ export const getCorsTargets = createServerFn({ method: "POST" })
 // Executions
 // ============================================================
 export const startExecution = createServerFn({ method: "POST" })
-  .middleware([requireAuth])
   .inputValidator((d) =>
     z
       .object({
@@ -392,7 +383,6 @@ export const startExecution = createServerFn({ method: "POST" })
   });
 
 export const pollExecution = createServerFn({ method: "POST" })
-  .middleware([requireAuth])
   .inputValidator((d) =>
     z.object({ executionRowId: z.string().min(1), sinceLines: z.number().int().min(0).default(0) }).parse(d),
   )
@@ -501,13 +491,11 @@ export const pollExecution = createServerFn({ method: "POST" })
   });
 
 export const listExecutions = createServerFn({ method: "GET" })
-  .middleware([requireAuth])
   .handler(async () => {
     return await listExecutionsSummary(100);
   });
 
 export const getExecution = createServerFn({ method: "POST" })
-  .middleware([requireAuth])
   .inputValidator((d) => z.object({ id: z.string().min(1) }).parse(d))
   .handler(async ({ data }) => {
     const row = await getExecutionById(data.id);
@@ -519,7 +507,6 @@ export const getExecution = createServerFn({ method: "POST" })
 // Seed demo executions on first boot (idempotent, filesystem-based)
 // ============================================================
 export const seedDemoExecutions = createServerFn({ method: "POST" })
-  .middleware([requireAuth])
   .handler(async () => {
     const existing = await countExecutions();
     if (existing > 0) return { inserted: 0 };

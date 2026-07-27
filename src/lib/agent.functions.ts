@@ -151,13 +151,21 @@ function demoResults(suiteId: string, tests: string[], envName: string) {
     webhook_dispatch: "Signature mismatch on retry #2.",
   };
   const alwaysFailInProd = envName.toLowerCase().includes("prod");
+  const suiteIds = suiteId.split(/[+,]/).map((s) => s.trim()).filter(Boolean);
+  const testToSuite = new Map<string, string>();
+  for (const sid of suiteIds) {
+    const suite = DEMO_SUITES.find((s) => s.suite_id === sid);
+    suite?.tests.forEach((t) => testToSuite.set(t, sid));
+  }
   return tests.map((t, i) => {
     const fail = failureMap[t] && (alwaysFailInProd || i % 4 === 3);
     return {
       name: t,
+      suite_id: testToSuite.get(t) ?? suiteIds[0] ?? suiteId,
       outcome: fail ? "failed" : "passed",
       duration: 0.4 + Math.random() * 1.6,
       message: fail ? failureMap[t] : "OK",
+      description: `Verifies that "${t.replace(/_/g, " ")}" behaves as expected.`,
     };
   });
 }

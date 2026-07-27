@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sar.fullname" . }}-config
+  labels: {{- include "sar.labels" . | nindent 4 }}
+data:
+  REPORTS_DIR: {{ .Values.reportsDir | quote }}
+  DEMO_MODE: {{ ternary "true" "false" .Values.demoMode | quote }}
+  AGENT_ENVIRONMENTS: |-
+    {{ toJson (default (list) .Values.agents) }}

@@ -1,0 +1,20 @@
+Sanity Agent Runner has been deployed.
+
+1. URL:
+{{- if .Values.route.enabled }}
+   oc get route {{ include "sar.fullname" . }} -n {{ .Release.Namespace }} -o jsonpath='{.spec.host}{"\n"}'
+{{- else }}
+   kubectl port-forward svc/{{ include "sar.fullname" . }} 8080:{{ .Values.service.port }} -n {{ .Release.Namespace }}
+   then open http://localhost:8080
+{{- end }}
+
+2. Sign in with:
+     username: {{ .Values.auth.username }}
+     password: (from values.yaml / secret {{ include "sar.fullname" . }}-auth)
+
+3. Reports are persisted at {{ .Values.reportsDir }} inside the pod, backed by
+   {{- if .Values.persistence.existingClaim }} PVC {{ .Values.persistence.existingClaim }}.
+   {{- else if .Values.persistence.enabled }} PVC {{ include "sar.fullname" . }}-reports ({{ .Values.persistence.size }}).
+   {{- else }} an ephemeral emptyDir (data lost on pod restart).{{- end }}
+
+4. To reconfigure agents or CORS targets, edit values.yaml and run `helm upgrade`.

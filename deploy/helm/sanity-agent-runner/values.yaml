@@ -1,0 +1,85 @@
+image:
+  repository: ghcr.io/your-org/sanity-agent-runner
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 8080
+
+# OpenShift Route. Disable if you use an Ingress or a Service only.
+route:
+  enabled: true
+  host: ""          # leave empty to let OpenShift assign one
+  tls:
+    enabled: true
+    termination: edge
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Reports live here inside the container and are backed by the PVC below.
+reportsDir: /data/reports
+
+persistence:
+  enabled: true
+  size: 2Gi
+  accessMode: ReadWriteOnce
+  storageClass: ""        # "" -> cluster default
+  # If you already created a PVC by hand, set its name here and it will be
+  # used verbatim (no new PVC is provisioned).
+  existingClaim: ""
+
+# --- Admin login (change these!) --------------------------------------------
+# These map to ADMIN_USERNAME / ADMIN_PASSWORD env vars in the pod.
+auth:
+  username: "admin"
+  password: "change-me"
+
+# --- Session signing secret --------------------------------------------------
+# Leave empty to auto-generate one on first install. The value is preserved
+# across upgrades via the `lookup` helm function.
+sessionSecret: ""
+
+# --- Agents & CORS targets ---------------------------------------------------
+# Each agent is one URL the app can execute suites against. `cors_targets`
+# are the URLs the browser-side CORS test tab probes for that agent.
+# If `agents` is empty the app runs in demo mode with mock data.
+demoMode: false
+
+agents: []
+# agents:
+#   - id: qa
+#     name: QA
+#     base_url: https://sanity-agent-qa.apps.example.com
+#     api_key: ""        # optional; sent as x-api-key + Authorization: Bearer
+#     cors_targets:
+#       - name: Raster geoserver
+#         url: https://raster-ingestion-qa-geoserver-api-route-qa.apps.example.com/workspaces
+#       - name: Raster pycsw
+#         url: https://catalog-int.example.net/api/raster/v1
+#   - id: prod
+#     name: Production
+#     base_url: https://sanity-agent-prod.apps.example.com
+#     cors_targets:
+#       - name: 3D pycsw
+#         url: https://serving-3d-pycsw.apps.example.com/
+
+# --- Pod-level knobs ---------------------------------------------------------
+podSecurityContext: {}
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+  runAsNonRoot: true
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

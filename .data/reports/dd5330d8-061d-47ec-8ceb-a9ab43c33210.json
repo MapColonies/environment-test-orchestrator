@@ -1,0 +1,39 @@
+{
+  "id": "dd5330d8-061d-47ec-8ceb-a9ab43c33210",
+  "start_time": "2026-07-27T15:21:33.516Z",
+  "end_time": "2026-07-27T15:21:42.099Z",
+  "duration": 8,
+  "results": [
+    {
+      "name": "invoice_pdf_render",
+      "outcome": "passed",
+      "duration": 1.3495638428191934,
+      "message": "OK"
+    },
+    {
+      "name": "tax_calc_eu",
+      "outcome": "passed",
+      "duration": 1.2342417278289584,
+      "message": "OK"
+    },
+    {
+      "name": "webhook_dispatch",
+      "outcome": "passed",
+      "duration": 1.0412979990686098,
+      "message": "OK"
+    },
+    {
+      "name": "refund_flow",
+      "outcome": "passed",
+      "duration": 1.520293868235139,
+      "message": "OK"
+    }
+  ],
+  "logs": "[00:00] bootstrapping runner\n[00:00] loading suite 'billing'\n[00:00] resolved 4 test(s)\n[00:01] warming HTTP client\n[00:01] auth handshake OK\n[00:01] ▶ invoice_pdf_render\n[00:01]   step: prepare fixtures\n[00:02]   step: exercise endpoint\n[00:02]   ✓ invoice_pdf_render passed\n[00:02] ▶ tax_calc_eu\n[00:02]   step: prepare fixtures\n[00:03]   step: exercise endpoint\n[00:03]   ✓ tax_calc_eu passed\n[00:03] ▶ webhook_dispatch\n[00:03]   step: prepare fixtures\n[00:04]   step: exercise endpoint\n[00:04]   ✓ webhook_dispatch passed\n[00:04] ▶ refund_flow\n[00:04]   step: prepare fixtures\n[00:04]   step: exercise endpoint\n[00:05]   ✓ refund_flow passed\n[00:07] finalizing report\n[00:08] done",
+  "error": null,
+  "environment_name": "dev (demo)",
+  "suite_id": "billing",
+  "test_ids": null,
+  "agent_execution_id": "demo:a7599977-a3b2-4963-99c7-afa7cc3dcc68",
+  "status": "completed"
+}

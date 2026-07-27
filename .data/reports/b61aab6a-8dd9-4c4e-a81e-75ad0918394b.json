@@ -1,0 +1,23 @@
+{
+  "id": "b61aab6a-8dd9-4c4e-a81e-75ad0918394b",
+  "start_time": "2026-07-27T15:19:37.489Z",
+  "end_time": "2026-07-27T15:19:46.066Z",
+  "duration": 8,
+  "results": [
+    {
+      "name": "invoice_pdf_render",
+      "outcome": "passed",
+      "duration": 0.5447401345504798,
+      "message": "OK"
+    }
+  ],
+  "logs": "[00:00] bootstrapping runner\n[00:00] loading suite 'billing'\n[00:00] resolved 1 test(s)\n[00:01] warming HTTP client\n[00:01] auth handshake OK\n[00:01] ▶ invoice_pdf_render\n[00:01]   step: prepare fixtures\n[00:02]   step: exercise endpoint\n[00:02]   ✓ invoice_pdf_render passed\n[00:07] finalizing report\n[00:08] done",
+  "error": null,
+  "environment_name": "staging (demo)",
+  "suite_id": "billing",
+  "test_ids": [
+    "invoice_pdf_render"
+  ],
+  "agent_execution_id": "demo:015890b5-cff8-44d0-94c4-9660b96e918d",
+  "status": "completed"
+}

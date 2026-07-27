@@ -474,7 +474,17 @@ export const pollExecution = createServerFn({ method: "POST" })
       if (statusBody.status) patch.status = statusBody.status;
       if (statusBody.end_time) patch.end_time = statusBody.end_time;
       if (typeof statusBody.duration === "number") patch.duration = statusBody.duration;
-      if (statusBody.results) patch.results = statusBody.results;
+      // New agent shape: suite_results[]. Flatten to results[] preserving suite_id + description.
+      if (Array.isArray(statusBody.suite_results)) {
+        patch.results = statusBody.suite_results.flatMap((sr: any) =>
+          (Array.isArray(sr?.results) ? sr.results : []).map((r: any) => ({
+            ...r,
+            suite_id: r?.suite_id ?? sr?.suite_id ?? null,
+          })),
+        );
+      } else if (Array.isArray(statusBody.results)) {
+        patch.results = statusBody.results;
+      }
       if (statusBody.error) patch.error = statusBody.error;
     }
     const updated = (await updateExecution(row.id, patch)) ?? row;

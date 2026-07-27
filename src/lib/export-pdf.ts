@@ -63,26 +63,37 @@ export function exportExecutionPdf(exec: any) {
     rule();
   }
 
-  // Per-test outcomes
+  // Per-test outcomes grouped by suite
   text("Test Results", { size: 13, bold: true });
   if (results.length === 0) {
     text("No test results recorded.", { color: [120, 120, 120] });
   } else {
-    results.forEach((r: any, i: number) => {
-      const ok = r.outcome === "passed" || r.outcome === "success";
-      ensure(20);
-      text(`${i + 1}. ${r.test_id ?? r.id ?? r.name ?? "Test"}  —  ${r.outcome ?? "unknown"}`, {
-        bold: true,
-        color: ok ? [30, 120, 60] : [180, 30, 30],
+    const groups = new Map<string, any[]>();
+    for (const r of results) {
+      const key = r?.suite_id ?? "(ungrouped)";
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(r);
+    }
+    for (const [suiteId, items] of groups.entries()) {
+      y += 4;
+      const p = items.filter((x: any) => x.outcome === "passed" || x.outcome === "success").length;
+      const f = items.length - p;
+      text(`Suite: ${suiteId}  (${items.length} tests, ${p} passed, ${f} failed)`, { size: 12, bold: true, color: [40, 40, 40] });
+      items.forEach((r: any, i: number) => {
+        const ok = r.outcome === "passed" || r.outcome === "success";
+        ensure(20);
+        text(`${i + 1}. ${r.name ?? r.test_id ?? r.id ?? "Test"}  —  ${r.outcome ?? "unknown"}`, {
+          bold: true,
+          color: ok ? [30, 120, 60] : [180, 30, 30],
+          indent: 8,
+        });
+        if (r.description) text(`Description: ${r.description}`, { indent: 20, color: [90, 90, 90] });
+        if (r.duration != null) text(`Duration: ${Number(r.duration).toFixed(2)}s`, { indent: 20, color: [110, 110, 110] });
+        if (r.message) text(`Message: ${r.message}`, { indent: 20 });
+        if (r.error) text(`Error: ${typeof r.error === "string" ? r.error : JSON.stringify(r.error, null, 2)}`, { indent: 20, color: [140, 30, 30] });
+        y += 2;
       });
-      if (r.duration != null) text(`Duration: ${Number(r.duration).toFixed(2)}s`, { indent: 12, color: [110, 110, 110] });
-      if (r.message) text(`Message: ${r.message}`, { indent: 12 });
-      if (r.error) text(`Error: ${typeof r.error === "string" ? r.error : JSON.stringify(r.error, null, 2)}`, { indent: 12, color: [140, 30, 30] });
-      if (r.details && typeof r.details === "object") {
-        text(`Details: ${JSON.stringify(r.details, null, 2)}`, { indent: 12, color: [90, 90, 90] });
-      }
-      y += 2;
-    });
+    }
   }
 
 

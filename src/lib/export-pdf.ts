@@ -85,12 +85,8 @@ export function exportExecutionPdf(exec: any) {
     });
   }
 
-  // Logs (optional trailing)
-  if (exec.logs) {
-    y += 4; rule();
-    text("Logs", { size: 13, bold: true });
-    text(String(exec.logs), { size: 9, color: [70, 70, 70] });
-  }
+
+
 
   const safe = (s: string) => (s || "report").replace(/[^a-z0-9-_]+/gi, "_").slice(0, 60);
   const name = `execution_${safe(exec.environment_name)}_${safe(exec.suite_id)}_${exec.id?.slice(0, 8) ?? "report"}.pdf`;

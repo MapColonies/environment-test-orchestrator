@@ -5,7 +5,7 @@ export const Route = createFileRoute("/api/session")({
   server: {
     handlers: {
       GET: async () => {
-        const s = readSessionCookie();
+        const s = await readSessionCookie();
         return Response.json({ user: s?.user ?? null });
       },
     },

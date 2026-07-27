@@ -1,6 +1,10 @@
 import { createHmac, timingSafeEqual, randomBytes } from "node:crypto";
 import { createMiddleware } from "@tanstack/react-start";
-import { getCookie, setCookie, deleteCookie } from "@tanstack/react-start/server";
+
+async function h3() {
+  return await import("@tanstack/react-start/server");
+}
+
 
 const COOKIE_NAME = "sar_sid";
 const MAX_AGE_SECONDS = 60 * 60 * 12; // 12h
@@ -33,12 +37,13 @@ function sign(payload: string, secret: string): string {
   return createHmac("sha256", secret).update(payload).digest("base64url");
 }
 
-export function issueSessionCookie(user: string) {
+export async function issueSessionCookie(user: string) {
   const secret = getSecret();
   const body = JSON.stringify({ u: user, exp: Math.floor(Date.now() / 1000) + MAX_AGE_SECONDS });
   const p = b64url(body);
   const s = sign(p, secret);
   const value = `${p}.${s}`;
+  const { setCookie } = await h3();
   setCookie(COOKIE_NAME, value, {
     httpOnly: true,
     sameSite: "lax",
@@ -48,11 +53,13 @@ export function issueSessionCookie(user: string) {
   });
 }
 
-export function clearSessionCookie() {
+export async function clearSessionCookie() {
+  const { deleteCookie } = await h3();
   deleteCookie(COOKIE_NAME, { path: "/" });
 }
 
-export function readSessionCookie(): { user: string } | null {
+export async function readSessionCookie(): Promise<{ user: string } | null> {
+  const { getCookie } = await h3();
   const raw = getCookie(COOKIE_NAME);
   if (!raw) return null;
   const [p, s] = raw.split(".");
@@ -72,6 +79,7 @@ export function readSessionCookie(): { user: string } | null {
   }
 }
 
+
 export function verifyCredentials(username: string, password: string): boolean {
   const eu = process.env.ADMIN_USERNAME || "admin";
   const ep = process.env.ADMIN_PASSWORD || "admin";
@@ -85,7 +93,7 @@ export function verifyCredentials(username: string, password: string): boolean {
 }
 
 export const requireAuth = createMiddleware({ type: "function" }).server(async ({ next }) => {
-  const session = readSessionCookie();
+  const session = await readSessionCookie();
   if (!session) {
     throw new Response("Unauthorized", { status: 401 });
   }

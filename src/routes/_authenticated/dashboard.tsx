@@ -2,7 +2,6 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { supabase } from "@/integrations/supabase/client";
 import {
   listEnvironments,
   getRunnerConfig,
@@ -56,7 +55,7 @@ function Dashboard() {
   useEffect(() => {
     if (!config?.demoMode) return;
     seed().then((r) => {
-      if (r.inserted > 0) {
+      if ((r.inserted ?? 0) > 0) {
         qc.invalidateQueries({ queryKey: ["executions"] });
         toast.success(`Loaded ${r.inserted} demo report${r.inserted === 1 ? "" : "s"}`);
       }
@@ -64,7 +63,9 @@ function Dashboard() {
   }, [config?.demoMode]); // eslint-disable-line
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await fetch("/api/logout", { method: "POST", credentials: "include" });
+    } catch { /* ignore */ }
     navigate({ to: "/auth", replace: true });
   };
 

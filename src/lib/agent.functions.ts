@@ -300,18 +300,24 @@ export const startExecution = createServerFn({ method: "POST" })
   .inputValidator((d) =>
     z
       .object({
-        envIds: z.array(z.string().min(1)).min(1),
-        suiteId: z.string().min(1),
-        testIds: z.array(z.string()).optional().nullable(),
+        runs: z
+          .array(
+            z.object({
+              envId: z.string().min(1),
+              suiteIds: z.array(z.string().min(1)).min(1),
+              testIds: z.array(z.string()).optional().nullable(),
+            }),
+          )
+          .min(1),
       })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
     const out: Array<{ executionRowId: string; envName: string; error?: string }> = [];
-    for (const envId of data.envIds) {
-      const env = getEnv(envId);
+    for (const run of data.runs) {
+      const env = getEnv(run.envId);
       if (!env) {
-        out.push({ executionRowId: "", envName: envId, error: "Unknown env" });
+        out.push({ executionRowId: "", envName: run.envId, error: "Unknown env" });
         continue;
       }
       let agentExecId: string | null = null;
@@ -324,7 +330,7 @@ export const startExecution = createServerFn({ method: "POST" })
         try {
           const res = await agentFetch(env.base_url, env.api_key, "/execute", {
             method: "POST",
-            body: JSON.stringify({ suite_id: data.suiteId, test_ids: data.testIds ?? null }),
+            body: JSON.stringify({ suite_ids: run.suiteIds, test_ids: run.testIds ?? null }),
           });
           if (!res.ok) {
             const text = await res.text();
@@ -339,14 +345,15 @@ export const startExecution = createServerFn({ method: "POST" })
         }
       }
 
+      const suiteLabel = run.suiteIds.join(", ");
       const { data: row, error } = await context.supabase
         .from("executions")
         .insert({
           user_id: context.userId,
           environment_id: null,
           environment_name: env.name,
-          suite_id: data.suiteId,
-          test_ids: data.testIds ?? null,
+          suite_id: suiteLabel,
+          test_ids: run.testIds ?? null,
           agent_execution_id: agentExecId,
           status,
           error: errorMsg,
@@ -358,6 +365,7 @@ export const startExecution = createServerFn({ method: "POST" })
     }
     return { executions: out };
   });
+
 
 export const pollExecution = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

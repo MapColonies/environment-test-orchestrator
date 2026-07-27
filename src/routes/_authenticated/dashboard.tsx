@@ -509,29 +509,55 @@ function StatusBadge({ status }: { status: string }) {
 
 function ResultsList({ results }: { results: any[] }) {
   if (!Array.isArray(results)) return null;
+  // Group by suite_id (fallback to "(ungrouped)")
+  const groups = new Map<string, any[]>();
+  for (const r of results) {
+    const key = r?.suite_id ?? "(ungrouped)";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(r);
+  }
   return (
-    <div className="space-y-1">
-      {results.map((r, i) => {
-        const passed = r.outcome === "passed" || r.outcome === "success";
+    <div className="space-y-4">
+      {Array.from(groups.entries()).map(([suiteId, items]) => {
+        const passed = items.filter((x) => x.outcome === "passed" || x.outcome === "success").length;
+        const failed = items.length - passed;
         return (
-          <div key={i} className="flex items-start gap-2 text-sm">
-            {passed ? (
-              <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 shrink-0" />
-            ) : (
-              <XCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
-            )}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-medium">{r.name}</span>
-                <span className="text-xs text-muted-foreground">{Number(r.duration).toFixed(2)}s</span>
-                <Badge variant={passed ? "outline" : "destructive"} className="text-[10px]">{r.outcome}</Badge>
-              </div>
-              {r.message && (
-                <div className={`text-xs mt-1 whitespace-pre-wrap ${passed ? "text-muted-foreground" : "text-destructive"}`}>
-                  {r.message}
-                </div>
-              )}
+          <div key={suiteId} className="space-y-1">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground border-b pb-1">
+              <span className="font-semibold text-foreground normal-case text-sm">{suiteId}</span>
+              <span>· {items.length} tests</span>
+              <span className="text-green-600">✓ {passed}</span>
+              {failed > 0 && <span className="text-destructive">✗ {failed}</span>}
             </div>
+            {items.map((r, i) => {
+              const ok = r.outcome === "passed" || r.outcome === "success";
+              return (
+                <div key={i} className="flex items-start gap-2 text-sm">
+                  {ok ? (
+                    <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 shrink-0" />
+                  ) : (
+                    <XCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium break-all">{r.name}</span>
+                      {r.duration != null && (
+                        <span className="text-xs text-muted-foreground">{Number(r.duration).toFixed(2)}s</span>
+                      )}
+                      <Badge variant={ok ? "outline" : "destructive"} className="text-[10px]">{r.outcome}</Badge>
+                    </div>
+                    {r.description && (
+                      <div className="text-xs mt-0.5 text-muted-foreground italic">{r.description}</div>
+                    )}
+                    {r.message && (
+                      <div className={`text-xs mt-1 whitespace-pre-wrap ${ok ? "text-muted-foreground" : "text-destructive"}`}>
+                        {r.message}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         );
       })}

@@ -13,6 +13,7 @@ import {
   listExecutions,
   getExecution,
   seedDemoExecutions,
+  compareCatalogs,
 } from "@/lib/agent.functions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +28,7 @@ import { toast } from "sonner";
 import {
   FlaskConical, LogOut, RefreshCw, Play, CheckCircle2, XCircle,
   Loader2, Server, Activity, FileText, ChevronRight, Circle, Download, Sparkles,
+  GitCompareArrows, Equal, AlertTriangle,
 } from "lucide-react";
 import { exportExecutionPdf } from "@/lib/export-pdf";
 
@@ -45,15 +47,10 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 // ============================================================
 function Dashboard() {
   const navigate = useNavigate();
-  const [userEmail, setUserEmail] = useState<string>("");
   const cfg = useServerFn(getRunnerConfig);
   const seed = useServerFn(seedDemoExecutions);
   const qc = useQueryClient();
   const { data: config } = useQuery({ queryKey: ["runner-config"], queryFn: () => cfg() });
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email ?? ""));
-  }, []);
 
   // In demo mode, seed a few historical executions once so Reports isn't empty.
   useEffect(() => {
@@ -85,7 +82,7 @@ function Dashboard() {
             )}
           </div>
           <div className="flex items-center gap-3 text-sm">
-            <span className="text-muted-foreground">{userEmail}</span>
+            <span className="text-muted-foreground">admin</span>
             <Button variant="ghost" size="sm" onClick={signOut}>
               <LogOut className="w-4 h-4 mr-1" /> Sign out
             </Button>
@@ -106,11 +103,13 @@ function Dashboard() {
         <Tabs defaultValue="run">
           <TabsList>
             <TabsTrigger value="run"><Play className="w-4 h-4 mr-1" />Run</TabsTrigger>
+            <TabsTrigger value="compare"><GitCompareArrows className="w-4 h-4 mr-1" />Compare</TabsTrigger>
             <TabsTrigger value="health"><Activity className="w-4 h-4 mr-1" />Agent health</TabsTrigger>
             <TabsTrigger value="reports"><FileText className="w-4 h-4 mr-1" />Reports</TabsTrigger>
             <TabsTrigger value="envs"><Server className="w-4 h-4 mr-1" />Environments</TabsTrigger>
           </TabsList>
           <TabsContent value="run"><RunTab /></TabsContent>
+          <TabsContent value="compare"><CompareTab /></TabsContent>
           <TabsContent value="health"><HealthTab /></TabsContent>
           <TabsContent value="reports"><ReportsTab /></TabsContent>
           <TabsContent value="envs"><EnvironmentsTab /></TabsContent>
@@ -619,5 +618,213 @@ function ReportsTab() {
         </DialogContent>
       </Dialog>
     </Card>
+  );
+}
+
+// ============================================================
+// Compare (catalog diff between 2 envs)
+// ============================================================
+type CatalogRecord = { name: string } & Record<string, string | number | boolean | null>;
+type CatalogResp = { id: string; name: string; raster: CatalogRecord[]; three_d: CatalogRecord[] };
+
+function CompareTab() {
+  const list = useServerFn(listEnvironments);
+  const compare = useServerFn(compareCatalogs);
+  const { data: envs = [] } = useQuery({ queryKey: ["envs"], queryFn: () => list() });
+  const [envA, setEnvA] = useState<string>("");
+  const [envB, setEnvB] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ a: CatalogResp; b: CatalogResp } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const run = async () => {
+    if (!envA || !envB || envA === envB) return;
+    setLoading(true); setError(null); setResult(null);
+    try {
+      const r = await compare({ data: { envIdA: envA, envIdB: envB } });
+      setResult(r as any);
+    } catch (e: any) {
+      setError(e?.message ?? "Compare failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="mt-4 space-y-4">
+      <Card>
+        <CardHeader><CardTitle>Compare catalogs across two environments</CardTitle></CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-[1fr_auto_1fr_auto] gap-3 items-end">
+            <div>
+              <div className="text-xs mb-1 text-muted-foreground">Environment A</div>
+              <Select value={envA} onValueChange={setEnvA}>
+                <SelectTrigger><SelectValue placeholder="Pick environment" /></SelectTrigger>
+                <SelectContent>
+                  {envs.map((e: any) => (
+                    <SelectItem key={e.id} value={e.id} disabled={e.id === envB}>{e.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <GitCompareArrows className="w-5 h-5 text-muted-foreground mb-2" />
+            <div>
+              <div className="text-xs mb-1 text-muted-foreground">Environment B</div>
+              <Select value={envB} onValueChange={setEnvB}>
+                <SelectTrigger><SelectValue placeholder="Pick environment" /></SelectTrigger>
+                <SelectContent>
+                  {envs.map((e: any) => (
+                    <SelectItem key={e.id} value={e.id} disabled={e.id === envA}>{e.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={run} disabled={!envA || !envB || envA === envB || loading}>
+              {loading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <GitCompareArrows className="w-4 h-4 mr-1" />}
+              Compare
+            </Button>
+          </div>
+          {error && <Alert variant="destructive" className="mt-3"><AlertDescription>{error}</AlertDescription></Alert>}
+        </CardContent>
+      </Card>
+
+      {result && (
+        <>
+          <CatalogCompareCard title="Raster catalog" kind="raster"
+            a={{ name: result.a.name, records: result.a.raster }}
+            b={{ name: result.b.name, records: result.b.raster }} />
+          <CatalogCompareCard title="3D catalog" kind="three_d"
+            a={{ name: result.a.name, records: result.a.three_d }}
+            b={{ name: result.b.name, records: result.b.three_d }} />
+        </>
+      )}
+    </div>
+  );
+}
+
+function CatalogCompareCard({
+  title, a, b,
+}: {
+  title: string; kind: "raster" | "three_d";
+  a: { name: string; records: CatalogRecord[] };
+  b: { name: string; records: CatalogRecord[] };
+}) {
+  const namesA = a.records.map((r) => r.name).sort();
+  const namesB = b.records.map((r) => r.name).sort();
+  const sameCount = a.records.length === b.records.length;
+  const sameNames = sameCount && namesA.every((n, i) => n === namesB[i]);
+  const onlyInA = namesA.filter((n) => !namesB.includes(n));
+  const onlyInB = namesB.filter((n) => !namesA.includes(n));
+
+  // If names match, compute per-record field diffs.
+  const fieldDiffs: Array<{ name: string; changes: Array<{ field: string; a: any; b: any }> }> = [];
+  if (sameNames) {
+    for (const name of namesA) {
+      const ra = a.records.find((r) => r.name === name)!;
+      const rb = b.records.find((r) => r.name === name)!;
+      const fields = Array.from(new Set([...Object.keys(ra), ...Object.keys(rb)])).filter((f) => f !== "name");
+      const changes = fields
+        .filter((f) => JSON.stringify(ra[f]) !== JSON.stringify(rb[f]))
+        .map((f) => ({ field: f, a: ra[f], b: rb[f] }));
+      if (changes.length) fieldDiffs.push({ name, changes });
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="flex items-center gap-2">
+          {title}
+          {sameNames ? (
+            fieldDiffs.length === 0 ? (
+              <Badge className="bg-green-600 hover:bg-green-600"><Equal className="w-3 h-3 mr-1" />identical</Badge>
+            ) : (
+              <Badge className="bg-amber-600 hover:bg-amber-600"><AlertTriangle className="w-3 h-3 mr-1" />{fieldDiffs.length} differ</Badge>
+            )
+          ) : (
+            <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />structure differs</Badge>
+          )}
+        </CardTitle>
+        <div className="text-xs text-muted-foreground">
+          {a.records.length} vs {b.records.length} records
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {!sameNames && (
+          <Alert>
+            <AlertDescription className="text-xs">
+              Record sets differ — showing side-by-side lists.
+              {onlyInA.length > 0 && <> Only in <b>{a.name}</b>: {onlyInA.join(", ")}.</>}
+              {onlyInB.length > 0 && <> Only in <b>{b.name}</b>: {onlyInB.join(", ")}.</>}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <div className="grid md:grid-cols-2 gap-3">
+          <SideList title={a.name} records={a.records} />
+          <SideList title={b.name} records={b.records} />
+        </div>
+
+        {sameNames && (
+          <div>
+            <div className="text-sm font-medium mb-2">Field-level differences</div>
+            {fieldDiffs.length === 0 ? (
+              <div className="text-sm text-muted-foreground flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+                All {a.records.length} records match on every field.
+              </div>
+            ) : (
+              <div className="border rounded-md overflow-hidden">
+                <div className="grid grid-cols-[minmax(140px,1fr)_120px_1fr_1fr] text-xs font-medium bg-muted/60 px-3 py-2">
+                  <div>Record</div><div>Field</div><div>{a.name}</div><div>{b.name}</div>
+                </div>
+                <div className="divide-y">
+                  {fieldDiffs.map((d) =>
+                    d.changes.map((c, i) => (
+                      <div key={d.name + c.field} className="grid grid-cols-[minmax(140px,1fr)_120px_1fr_1fr] text-xs px-3 py-2">
+                        <div className="font-medium">{i === 0 ? d.name : ""}</div>
+                        <div className="text-muted-foreground">{c.field}</div>
+                        <div className="font-mono text-amber-700 dark:text-amber-400 break-all">{fmtVal(c.a)}</div>
+                        <div className="font-mono text-amber-700 dark:text-amber-400 break-all">{fmtVal(c.b)}</div>
+                      </div>
+                    )),
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function fmtVal(v: unknown) {
+  if (v === undefined) return "—";
+  if (v === null) return "null";
+  if (typeof v === "string") return v;
+  return JSON.stringify(v);
+}
+
+function SideList({ title, records }: { title: string; records: CatalogRecord[] }) {
+  return (
+    <div className="border rounded-md">
+      <div className="px-3 py-2 border-b bg-muted/40 text-sm font-medium flex items-center justify-between">
+        <span>{title}</span>
+        <Badge variant="outline">{records.length}</Badge>
+      </div>
+      <ScrollArea className="h-56">
+        <ul className="divide-y text-xs">
+          {records.map((r) => (
+            <li key={r.name} className="px-3 py-2">
+              <div className="font-medium">{r.name}</div>
+              <div className="text-muted-foreground font-mono truncate">
+                {Object.entries(r).filter(([k]) => k !== "name").map(([k, v]) => `${k}=${fmtVal(v)}`).join(" · ")}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </ScrollArea>
+    </div>
   );
 }

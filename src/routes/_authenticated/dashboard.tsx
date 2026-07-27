@@ -31,6 +31,7 @@ import {
   GitCompareArrows, Equal, AlertTriangle, ShieldCheck,
 } from "lucide-react";
 import { exportExecutionPdf } from "@/lib/export-pdf";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({

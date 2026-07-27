@@ -220,7 +220,8 @@ export const getCapabilities = createServerFn({ method: "POST" })
 // ============================================================
 // Catalogs (raster + three_d)
 // ============================================================
-type CatalogRecord = { name: string; [k: string]: unknown };
+type CatalogValue = string | number | boolean | null;
+type CatalogRecord = { name: string } & Record<string, CatalogValue>;
 type CatalogResponse = { raster: CatalogRecord[]; three_d: CatalogRecord[] };
 
 const DEMO_RASTER_NAMES = ["basemap-world", "elevation-30m", "landcover-2024", "sat-truecolor", "hillshade"];

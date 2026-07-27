@@ -14,6 +14,7 @@ import {
   getExecution,
   seedDemoExecutions,
   compareCatalogs,
+  getCorsTargets,
 } from "@/lib/agent.functions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,7 +29,7 @@ import { toast } from "sonner";
 import {
   FlaskConical, LogOut, RefreshCw, Play, CheckCircle2, XCircle,
   Loader2, Server, Activity, FileText, ChevronRight, Circle, Download, Sparkles,
-  GitCompareArrows, Equal, AlertTriangle,
+  GitCompareArrows, Equal, AlertTriangle, ShieldCheck,
 } from "lucide-react";
 import { exportExecutionPdf } from "@/lib/export-pdf";
 
@@ -104,11 +105,13 @@ function Dashboard() {
             <TabsTrigger value="run"><Play className="w-4 h-4 mr-1" />Run</TabsTrigger>
             <TabsTrigger value="compare"><GitCompareArrows className="w-4 h-4 mr-1" />Compare</TabsTrigger>
             <TabsTrigger value="health"><Activity className="w-4 h-4 mr-1" />Agent health</TabsTrigger>
+            <TabsTrigger value="cors"><ShieldCheck className="w-4 h-4 mr-1" />CORS test</TabsTrigger>
             <TabsTrigger value="reports"><FileText className="w-4 h-4 mr-1" />Reports</TabsTrigger>
           </TabsList>
           <TabsContent value="run"><RunTab /></TabsContent>
           <TabsContent value="compare"><CompareTab /></TabsContent>
           <TabsContent value="health"><HealthTab /></TabsContent>
+          <TabsContent value="cors"><CorsTab /></TabsContent>
           <TabsContent value="reports"><ReportsTab /></TabsContent>
         </Tabs>
       </main>
@@ -884,4 +887,167 @@ function fmtVal(v: unknown) {
   if (v === null) return "null";
   if (typeof v === "string") return v;
   return JSON.stringify(v);
+}
+
+// ============================================================
+// CORS test — browser-side fetch matrix per environment
+// ============================================================
+type CorsTarget = { name: string; url: string; token?: string | null };
+type CorsMethod = "Token in Param" | "Token in Header" | "No Token (expect 401)";
+type CorsCellState =
+  | { state: "loading" }
+  | { state: "success"; label: string }
+  | { state: "error"; label: string };
+
+function CorsTab() {
+  const list = useServerFn(listEnvironments);
+  const getTargets = useServerFn(getCorsTargets);
+  const { data: envs = [] } = useQuery({ queryKey: ["envs"], queryFn: () => list() });
+
+  return (
+    <div className="mt-4 space-y-4">
+      {envs.length === 0 ? (
+        <Card><CardContent className="py-8 text-sm text-muted-foreground text-center">
+          No environments configured.
+        </CardContent></Card>
+      ) : envs.map((env: any) => (
+        <CorsEnvSection key={env.id} env={env} fetchTargets={() => getTargets({ data: { envId: env.id } })} />
+      ))}
+    </div>
+  );
+}
+
+function CorsEnvSection({
+  env, fetchTargets,
+}: {
+  env: any;
+  fetchTargets: () => Promise<CorsTarget[]>;
+}) {
+  const [targets, setTargets] = useState<CorsTarget[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [nonce, setNonce] = useState(0);
+
+  const load = useCallback(async () => {
+    setLoading(true); setError(null);
+    try {
+      const list = await fetchTargets();
+      setTargets(Array.isArray(list) ? list : []);
+      setNonce((n) => n + 1);
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to load /cors-test");
+      setTargets([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchTargets]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            <Server className="w-4 h-4" />{env.name}
+          </CardTitle>
+          <div className="text-xs text-muted-foreground mt-1 break-all">{env.base_url}</div>
+        </div>
+        <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+          <RefreshCw className={`w-4 h-4 mr-1 ${loading ? "animate-spin" : ""}`} />Re-run
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {error && <Alert variant="destructive" className="mb-3"><AlertDescription className="text-xs">{error}</AlertDescription></Alert>}
+        {targets === null ? (
+          <div className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Loading targets…</div>
+        ) : targets.length === 0 && !error ? (
+          <div className="text-sm text-muted-foreground">No CORS targets returned.</div>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {targets.map((t, i) => (
+              <CorsBox key={`${nonce}-${i}-${t.url}`} target={t} />
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function CorsBox({ target }: { target: CorsTarget }) {
+  const methods: CorsMethod[] = ["Token in Param", "Token in Header", "No Token (expect 401)"];
+  const [results, setResults] = useState<Record<CorsMethod, CorsCellState>>({
+    "Token in Param": { state: "loading" },
+    "Token in Header": { state: "loading" },
+    "No Token (expect 401)": { state: "loading" },
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    const set = (m: CorsMethod, v: CorsCellState) => {
+      if (!cancelled) setResults((r) => ({ ...r, [m]: v }));
+    };
+
+    const runOne = async (
+      method: CorsMethod,
+      url: string,
+      init: RequestInit,
+      isSuccess: (r: Response) => boolean = (r) => r.ok,
+    ) => {
+      try {
+        const res = await fetch(url, init);
+        if (isSuccess(res)) set(method, { state: "success", label: `Success (${res.status})` });
+        else set(method, { state: "error", label: `Got ${res.status} ${res.statusText}` });
+      } catch (e: any) {
+        const msg = e?.message ?? String(e);
+        if (method === "No Token (expect 401)" && msg === "Failed to fetch") {
+          set(method, { state: "success", label: "Success (CORS Block)" });
+        } else {
+          set(method, {
+            state: "error",
+            label: msg === "Failed to fetch" ? "Blocked by CORS (see DevTools)" : msg,
+          });
+        }
+      }
+    };
+
+    const sep = target.url.includes("?") ? "&" : "?";
+    const urlParam = target.token ? `${target.url}${sep}token=${target.token}` : target.url;
+    const headers = new Headers();
+    if (target.token) headers.set("x-api-key", target.token);
+
+    runOne("Token in Param", urlParam, { method: "GET" });
+    runOne("Token in Header", target.url, { method: "GET", headers, redirect: "follow" });
+    runOne("No Token (expect 401)", target.url, { method: "GET" }, (r) => r.status === 401);
+
+    return () => { cancelled = true; };
+  }, [target.url, target.token]);
+
+  return (
+    <div className="border rounded-lg p-3 bg-card">
+      <div className="text-sm font-semibold">{target.name}</div>
+      <div className="text-[11px] text-muted-foreground break-all mb-2">{target.url}</div>
+      <div className="space-y-2">
+        {methods.map((m) => {
+          const r = results[m];
+          const cls = r.state === "loading"
+            ? "bg-muted text-muted-foreground"
+            : r.state === "success"
+              ? "bg-green-600 text-white"
+              : "bg-destructive text-destructive-foreground";
+          return (
+            <div key={m} className={`rounded px-2 py-1.5 text-xs ${cls}`}>
+              <div className="font-medium">{m}</div>
+              <div className="mt-0.5">
+                {r.state === "loading" ? (
+                  <span className="flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />Loading…</span>
+                ) : r.label}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }

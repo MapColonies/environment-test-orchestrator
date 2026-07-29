@@ -1,0 +1,16 @@
+{
+  "id": "9ca5e8ae-6cbd-43ed-9ae9-9b02c641fbce",
+  "start_time": "2026-07-28T10:47:19.079Z",
+  "end_time": "2026-07-28T10:47:19.143746+00:00",
+  "duration": 0.06498,
+  "results": [],
+  "logs": "",
+  "error": null,
+  "environment_name": "Local Agent",
+  "suite_id": "threeD",
+  "test_ids": [
+    "threeD/test_3d_pycsw_links.py::test_pycsw_3d_headers"
+  ],
+  "agent_execution_id": "62bb41ff-960b-4b5f-af8a-57dee95c8d2f",
+  "status": "failed"
+}

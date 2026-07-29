@@ -458,13 +458,23 @@ export const pollExecution = createServerFn({ method: "POST" })
     try {
       const logsRes = await agentFetch(baseUrl, apiKey, `/executions/${agentExecId}/logs/lines`, { method: "GET" });
       if (logsRes.ok) {
-        const body = await logsRes.json();
-        if (Array.isArray(body)) allLines = body.map(String);
-        else if (Array.isArray(body?.lines)) allLines = body.lines.map(String);
-        else if (typeof body?.logs === "string") allLines = body.logs.split("\n");
+        const contentType = logsRes.headers.get("content-type") ?? "";
+        if (contentType.includes("text/event-stream")) {
+          // Agent streams SSE frames ("data: <line>\n\n") instead of a JSON body.
+          const text = await logsRes.text();
+          allLines = text
+            .split("\n\n")
+            .map((chunk) => chunk.replace(/^data:\s?/, "").trimEnd())
+            .filter(Boolean);
+        } else {
+          const body = await logsRes.json();
+          if (Array.isArray(body)) allLines = body.map(String);
+          else if (Array.isArray(body?.lines)) allLines = body.lines.map(String);
+          else if (typeof body?.logs === "string") allLines = body.logs.split("\n");
+        }
       }
-    } catch {
-      /* tolerate */
+    } catch (e) {
+      console.error(`[pollExecution] logs fetch failed for ${agentExecId}:`, e);
     }
 
     const newLogLines = allLines.slice(data.sinceLines);
@@ -473,8 +483,8 @@ export const pollExecution = createServerFn({ method: "POST" })
     try {
       const statusRes = await agentFetch(baseUrl, apiKey, `/executions/${agentExecId}/status`, { method: "GET" });
       if (statusRes.ok) statusBody = await statusRes.json();
-    } catch {
-      /* ignore */
+    } catch (e) {
+      console.error(`[pollExecution] status fetch failed for ${agentExecId}:`, e);
     }
 
     const patch: Partial<typeof row> = { logs: allLines.join("\n") };

@@ -1,0 +1,16 @@
+{
+  "id": "880e6ead-1b53-46d6-8e5b-dfe1af25bec9",
+  "start_time": "2026-07-28T10:48:59.121Z",
+  "end_time": "2026-07-28T10:48:59.250769+00:00",
+  "duration": 0.129539,
+  "results": [],
+  "logs": "",
+  "error": null,
+  "environment_name": "Local Agent",
+  "suite_id": "dummy",
+  "test_ids": [
+    "dummy/test_dummy_flow.py::test_dummy_fail"
+  ],
+  "agent_execution_id": "e899902a-7a3a-4787-b547-fbffd7eb721c",
+  "status": "failed"
+}

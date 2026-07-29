@@ -41,7 +41,7 @@ persistence:
 # These map to ADMIN_USERNAME / ADMIN_PASSWORD env vars in the pod.
 auth:
   username: "admin"
-  password: "change-me"
+  password: "admin"
 
 # --- Session signing secret --------------------------------------------------
 # Leave empty to auto-generate one on first install. The value is preserved

@@ -12,4 +12,8 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // Default host "::" (IPv6 wildcard) fails with EAFNOSUPPORT on hosts without IPv6.
+  vite: {
+    server: { host: "127.0.0.1" },
+  },
 });

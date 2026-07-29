@@ -1,0 +1,16 @@
+{
+  "id": "c86ae139-39db-423d-a3d4-5cdb4aaeb9e7",
+  "start_time": "2026-07-28T10:57:54.426Z",
+  "end_time": "2026-07-28T10:57:54.488131+00:00",
+  "duration": 0.063482,
+  "results": [],
+  "logs": ">>> --- starting suite 'dummy' ---\nevent: end\ndata: done",
+  "error": null,
+  "environment_name": "Local Agent",
+  "suite_id": "dummy",
+  "test_ids": [
+    "dummy/test_dummy_flow.py::test_dummy_fail"
+  ],
+  "agent_execution_id": "83eabb1a-cde4-47df-b4e1-e0c36ea4abf2",
+  "status": "failed"
+}

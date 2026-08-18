@@ -86,11 +86,6 @@ function AuthPage() {
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Please wait..." : "Sign in"}
             </Button>
-            <Alert>
-              <AlertDescription className="text-xs">
-                Credentials are set at deploy time via <code className="bg-muted px-1 rounded">ADMIN_USERNAME</code> / <code className="bg-muted px-1 rounded">ADMIN_PASSWORD</code>.
-              </AlertDescription>
-            </Alert>
           </form>
           <div className="text-center mt-4 text-sm text-muted-foreground">
             <Link to="/" className="hover:text-foreground">← Back home</Link>

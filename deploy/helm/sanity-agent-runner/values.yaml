@@ -1,7 +1,16 @@
 image:
-  repository: ghcr.io/your-org/sanity-agent-runner
-  tag: "latest"
+  repository: acrarolibotnonprod.azurecr.io/automation/sanity-ui
+  tag: v1.0.3
   pullPolicy: IfNotPresent
+
+# Private registry pull secret. Create it first, e.g.:
+#   oc create secret docker-registry acr-registry \
+#     --docker-server=acrarolibotnonprod.azurecr.io \
+#     --docker-username=<user> --docker-password=<password>
+cloudProvider:
+  dockerRegistryUrl: acrarolibotnonprod.azurecr.io
+  imagePullSecretName: acr-registry
+  flavor: openshift
 
 replicaCount: 1
 
@@ -48,29 +57,33 @@ auth:
 # across upgrades via the `lookup` helm function.
 sessionSecret: ""
 
-# --- Agents & CORS targets ---------------------------------------------------
-# Each agent is one URL the app can execute suites against. `cors_targets`
-# are the URLs the browser-side CORS test tab probes for that agent.
+# --- Supabase ------------------------------------------------------------
+# url/publishableKey: also baked into the client bundle at image build time
+# (docker build --build-arg VITE_SUPABASE_URL=... --build-arg VITE_SUPABASE_PUBLISHABLE_KEY=...).
+# The values here just make them available to the server process at runtime.
+# serviceRoleKey: server-only, never exposed to the client bundle. Get it from
+# Supabase dashboard -> Settings -> API -> service_role secret.
+supabase:
+  url: ""
+  publishableKey: ""
+  serviceRoleKey: ""
+
+# --- Agents ------------------------------------------------------------------
+# Each agent needs only a base_url and its token. Catalog and CORS-test data
+# are fetched live from the agent at that URL. Set `cors_targets` only if you
+# need to override/curate the agent's own `/cors-test` response.
 # If `agents` is empty the app runs in demo mode with mock data.
 demoMode: false
 
-agents: []
-# agents:
-#   - id: qa
-#     name: QA
-#     base_url: https://sanity-agent-qa.apps.example.com
-#     api_key: ""        # optional; sent as x-api-key + Authorization: Bearer
-#     cors_targets:
-#       - name: Raster geoserver
-#         url: https://raster-ingestion-qa-geoserver-api-route-qa.apps.example.com/workspaces
-#       - name: Raster pycsw
-#         url: https://catalog-int.example.net/api/raster/v1
-#   - id: prod
-#     name: Production
-#     base_url: https://sanity-agent-prod.apps.example.com
-#     cors_targets:
-#       - name: 3D pycsw
-#         url: https://serving-3d-pycsw.apps.example.com/
+agents:
+  - id: qa
+    name: QA
+    base_url: https://sanity-agent-nginx-route-qa.apps.j1lk3njp.eastus.aroapp.io
+    api_key: ""        # sent as x-api-key + Authorization: Bearer — set via my-values.secrets.yaml
+  - id: int
+    name: Integration
+    base_url: https://sanity-agent-nginx-route-integration.apps.j1lk3njp.eastus.aroapp.io
+    api_key: ""        # sent as x-api-key + Authorization: Bearer — set via my-values.secrets.yaml
 
 # --- Pod-level knobs ---------------------------------------------------------
 podSecurityContext: {}

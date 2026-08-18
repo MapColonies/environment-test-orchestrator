@@ -43,9 +43,7 @@ agents:
   - id: qa
     name: QA
     base_url: https://sanity-agent-qa.apps.example.com
-    cors_targets:
-      - { name: "Raster geoserver", url: "https://raster-qa.example.com/workspaces" }
-      - { name: "Raster pycsw",     url: "https://catalog-qa.example.com/api/raster/v1" }
+    api_key: "optional-per-agent-key"
   - id: prod
     name: Production
     base_url: https://sanity-agent-prod.apps.example.com
@@ -57,6 +55,17 @@ agents:
 
 If `agents` is left empty the app boots in **demo mode** and shows mock
 data — handy for verifying the deployment before real agents exist.
+
+### `cors_targets` is optional
+
+Catalog data (`/catalog/raster`, `/catalog/three-d`) is always fetched live
+from the agent's `base_url` — never configured here.
+
+CORS test targets work the same way by default: if `cors_targets` is
+omitted, the app calls the agent's own `/cors-test` endpoint and uses
+whatever it returns. Set `cors_targets` only to override/curate that list
+(fixed set, custom names, ordering) instead of trusting the agent's
+`/cors-test` response.
 
 ## Persistence
 

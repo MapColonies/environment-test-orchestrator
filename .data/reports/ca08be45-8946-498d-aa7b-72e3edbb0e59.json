@@ -1,0 +1,51 @@
+{
+  "id": "ca08be45-8946-498d-aa7b-72e3edbb0e59",
+  "start_time": "2026-08-02T10:30:00.646Z",
+  "end_time": "2026-08-02T10:30:15.729917+00:00",
+  "duration": 15.084664,
+  "results": [
+    {
+      "name": "dummy/test_dummy_flow.py::test_dummy_pass_fast",
+      "outcome": "passed",
+      "duration": 5.002073472947814,
+      "message": null,
+      "description": "check the docstring",
+      "markers": [
+        "warnning",
+        "dummy"
+      ],
+      "suite_id": "dummy"
+    },
+    {
+      "name": "dummy/test_dummy_flow.py::test_dummy_pass_slow",
+      "outcome": "passed",
+      "duration": 5.008589437115006,
+      "message": null,
+      "description": "check the docstring1111111",
+      "markers": [
+        "warnning",
+        "dummy"
+      ],
+      "suite_id": "dummy"
+    },
+    {
+      "name": "dummy/test_dummy_flow.py::test_dummy_fail",
+      "outcome": "failed",
+      "duration": 5.001673905993812,
+      "message": "start_test = None\n\n    @pytest.mark.suite(domain=\"dummy_domain\")\n    @pytest.mark.warnning\n    @pytest.mark.dummy\n    def test_dummy_fail(start_test):\n        \"\"\" check the docstring 2222222\"\"\"\n    \n        for i in range(5):\n            print(f\">>> test_dummy_fail i={i}\")\n            time.sleep(1)\n>       assert 1 == 2, \"intentional failure to verify failed-test reporting\"\nE       AssertionError: intentional failure to verify failed-test reporting\nE       assert 1 == 2\n\ndummy/test_dummy_flow.py:47: AssertionError",
+      "description": "check the docstring 2222222",
+      "markers": [
+        "dummy",
+        "warnning"
+      ],
+      "suite_id": "dummy"
+    }
+  ],
+  "logs": ">>> --- starting suite 'dummy' ---\n>>> STARTING TEST: test dummy pass fast\n>>> STARTING TEST: test dummy pass fast\n>>> start test\n>>> test_dummy_pass_fast i=0\n>>> test_dummy_pass_fast i=1\n>>> test_dummy_pass_fast i=2\n>>> test_dummy_pass_fast i=3\n>>> test_dummy_pass_fast i=4\n>>> RESULT for test dummy pass fast: PASSED\n>>> FINISHED TEST: test dummy pass fast\n>>> FINISHED TEST: test dummy pass fast\n>>> STARTING TEST: test dummy pass slow\n>>> STARTING TEST: test dummy pass slow\n>>> start test\n>>> test_dummy_pass_slow i=0\n>>> test_dummy_pass_slow i=1\n>>> test_dummy_pass_slow i=2\n>>> test_dummy_pass_slow i=3\n>>> test_dummy_pass_slow i=4\n>>> RESULT for test dummy pass slow: PASSED\n>>> FINISHED TEST: test dummy pass slow\n>>> FINISHED TEST: test dummy pass slow\n>>> STARTING TEST: test dummy fail\n>>> STARTING TEST: test dummy fail\n>>> start test\n>>> test_dummy_fail i=0\n>>> test_dummy_fail i=1\n>>> test_dummy_fail i=2\n>>> test_dummy_fail i=3\n>>> test_dummy_fail i=4\n>>> RESULT for test dummy fail: FAILED\n>>> FINISHED TEST: test dummy fail\n>>> FINISHED TEST: test dummy fail\nevent: end\ndata: done",
+  "error": null,
+  "environment_name": "Local Agent",
+  "suite_id": "dummy",
+  "test_ids": null,
+  "agent_execution_id": "d3283b7c-af0b-47be-aa92-f585bfafb493",
+  "status": "failed"
+}

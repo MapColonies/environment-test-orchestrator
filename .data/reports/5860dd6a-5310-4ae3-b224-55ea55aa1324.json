@@ -1,0 +1,29 @@
+{
+  "id": "5860dd6a-5310-4ae3-b224-55ea55aa1324",
+  "start_time": "2026-08-02T08:42:00.846Z",
+  "end_time": "2026-08-02T08:42:05.907696+00:00",
+  "duration": 5.061978,
+  "results": [
+    {
+      "name": "dummy/test_dummy_flow.py::test_dummy_pass_fast",
+      "outcome": "passed",
+      "duration": 5.002249141922221,
+      "message": null,
+      "description": "check the docstring",
+      "markers": [
+        "warnning",
+        "dummy"
+      ],
+      "suite_id": "dummy"
+    }
+  ],
+  "logs": ">>> --- starting suite 'dummy' ---\n>>> STARTING TEST: test dummy pass fast\n>>> STARTING TEST: test dummy pass fast\n>>> start test\n>>> test_dummy_pass_fast i=0\n>>> test_dummy_pass_fast i=1\n>>> test_dummy_pass_fast i=2\n>>> test_dummy_pass_fast i=3\n>>> test_dummy_pass_fast i=4\n>>> RESULT for test dummy pass fast: PASSED\n>>> FINISHED TEST: test dummy pass fast\n>>> FINISHED TEST: test dummy pass fast\nevent: end\ndata: done",
+  "error": null,
+  "environment_name": "Local Agent",
+  "suite_id": "dummy",
+  "test_ids": [
+    "dummy/test_dummy_flow.py::test_dummy_pass_fast"
+  ],
+  "agent_execution_id": "b92a28c5-b707-4fe0-843d-28db9f394f6e",
+  "status": "completed"
+}

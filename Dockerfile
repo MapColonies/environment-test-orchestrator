@@ -9,6 +9,13 @@ WORKDIR /app
 ENV NITRO_PRESET=node-server
 ENV NODE_ENV=production
 
+# Vite bakes these into the client bundle at build time — must be supplied
+# via --build-arg, not just as pod env vars at runtime.
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_PUBLISHABLE_KEY
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
+
 COPY package.json bun.lockb* bunfig.toml* ./
 RUN bun install --frozen-lockfile || bun install
 

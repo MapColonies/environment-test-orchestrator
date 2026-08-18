@@ -12,6 +12,14 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // `inlineDynamicImports` isn't in this wrapper's typed `nitro` option surface, but it's
+  // spread straight through to nitro/vite untouched — this is a real Nitro config key.
+  // Bundles the SSR output into one file instead of splitting into content-hashed chunks.
+  // Needed to work around a chunk-cycle bug in the current nitro/rolldown pre-RC pin:
+  // the split SSR chunks reference each other circularly, and one calls
+  // `createCsrfMiddleware` before the chunk defining it finishes evaluating
+  // ("TypeError: createCsrfMiddleware is not a function" at runtime).
+  nitro: { inlineDynamicImports: true } as { preset?: string },
   // Default host "::" (IPv6 wildcard) fails with EAFNOSUPPORT on hosts without IPv6.
   vite: {
     server: { host: "127.0.0.1" },

@@ -315,6 +315,7 @@ export const getCorsTargets = createServerFn({ method: "POST" })
       if (!res.ok) return [];
       const body = await res.json();
       if (Array.isArray(body)) return body;
+      if (Array.isArray(body?.links)) return body.links;
       return [];
     } catch {
       return [];

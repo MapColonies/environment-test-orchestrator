@@ -38,3 +38,14 @@ otherwise we generate 48 random characters on first install.
 {{- end -}}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Returns the cloud provider image pull secret name from global if exists or from the chart's values
+*/}}
+{{- define "sar.cloudProviderImagePullSecretName" -}}
+{{- if and .Values.global .Values.global.cloudProvider .Values.global.cloudProvider.imagePullSecretName }}
+    {{- .Values.global.cloudProvider.imagePullSecretName -}}
+{{- else if .Values.cloudProvider.imagePullSecretName -}}
+    {{- .Values.cloudProvider.imagePullSecretName -}}
+{{- end -}}
+{{- end -}}

@@ -1,0 +1,86 @@
+name: Build & Push Docker and Helm to Artifactory
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to build from'
+        required: true
+        default: 'main'
+      image_tag:
+        description: 'Docker image tag (e.g., 1.0.0)'
+        required: true
+
+env:
+  HELM_EXPERIMENTAL_OCI: 1
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  push-docker-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.branch }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Artifactory Docker Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ACR_URL }}
+          username: ${{ secrets.ACR_PUSH_USER }}
+          password: ${{ secrets.ACR_PUSH_TOKEN }}
+
+      - name: Build Docker image
+        run: |
+          docker build -f ./Dockerfile \
+            --build-arg VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }} \
+            --build-arg VITE_SUPABASE_PUBLISHABLE_KEY=${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }} \
+            -t ${{ secrets.ACR_URL }}/automation/sanity-ui:${{ github.event.inputs.image_tag }} .
+      - name: Push Docker image
+        run: |
+          docker push ${{ secrets.ACR_URL }}/automation/sanity-ui:${{ github.event.inputs.image_tag }}
+
+  push-helm-package:
+    runs-on: ubuntu-latest
+    needs: push-docker-image
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.branch }}
+
+      - name: Update Chart.yaml and values.yaml
+        run: |
+          sed -i "s/^version:.*/version: ${{ github.event.inputs.image_tag }}/" deploy/helm/sanity-agent-runner/Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"${{ github.event.inputs.image_tag }}\"/" deploy/helm/sanity-agent-runner/Chart.yaml
+          sed -i "s/tag:.*/tag: ${{ github.event.inputs.image_tag }}/" deploy/helm/sanity-agent-runner/values.yaml
+          echo "=== Chart.yaml after update ==="
+          cat deploy/helm/sanity-agent-runner/Chart.yaml
+          echo "=== values.yaml after update ==="
+          cat deploy/helm/sanity-agent-runner/values.yaml
+      - name: Artifactory Login
+        uses: MapColonies/shared-workflows/actions/artifactory-login@artifactory-login-v1
+        with:
+          registry: ${{ secrets.ACR_URL }}
+          username: ${{ secrets.ACR_PUSH_USER }}
+          password: ${{ secrets.ACR_PUSH_TOKEN }}
+
+      - name: Package Helm Chart
+        run: |
+          cd deploy/helm/sanity-agent-runner
+          helm dependency update
+          helm package . \
+            --version ${{ github.event.inputs.image_tag }} \
+            --app-version ${{ github.event.inputs.image_tag }}
+          ls -lh
+      - name: Push Helm Chart to Artifactory
+        run: |
+          cd deploy/helm/sanity-agent-runner
+          helm push ./sanity-agent-runner-${{ github.event.inputs.image_tag }}.tgz oci://${{ secrets.ACR_URL }}/helm/automation
